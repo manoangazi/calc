@@ -167,10 +167,12 @@ when it has wrapped), `⌫` (backspace, accent-filled). Long-press `⌫` clears.
 - No system keyboard ever appears: the expression is a `div`, not an `<input>`.
   Caret is drawn and managed by the app.
 
-**Decimal separator** is `.` by default and switchable to `,` from the overflow
-menu, persisted in `localStorage`. It lives in one config object rather than
-scattered through the renderer. Grouping always uses a thin space, in both
-settings, so it can never collide with a comma decimal.
+**Decimal separator** is always `.`. It was briefly switchable to `,` from the
+overflow menu and persisted per device, but the setting was removed in favour of
+one less thing to knock out of place — the owner uses `.` only. It still lives in
+one config object in `format.js` rather than scattered through the renderer, so
+reinstating a switch is a small change. Grouping uses a space, never a comma, so
+it could not collide with a comma decimal in any case.
 
 **`00` key** inserts two zeros, subject to the same leading-zero guard as `0`.
 
@@ -226,7 +228,7 @@ This is the stage that decides whether you actually use the thing.
 - Depth count rendered on the `( )` key face; `⌃` collapse control once the
   expression wraps.
 - Haptics via a short `navigator.vibrate` where supported, silent fallback on iOS.
-- App bar with the overflow menu (`⋯` → copy result, decimal-separator setting).
+- App bar with the overflow menu (`⋯` → copy result).
 
 **Done when:** you can fix a typo in the middle of a long expression without
 retyping it.

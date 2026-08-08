@@ -1,5 +1,5 @@
 import { initialState, apply, preview, openDepth } from './model.js';
-import { formatExpression, formatResult, config, setDecimalSep } from './format.js';
+import { formatExpression, formatResult } from './format.js';
 import { ERRORS } from './errors.js';
 import { addEntry, loadHistory, saveHistory } from './history.js';
 
@@ -12,16 +12,14 @@ const utility = document.querySelector('.utility');
 const collapseBtn = document.querySelector('[data-act="collapse"]');
 const menuBtn = document.querySelector('[data-act="menu"]');
 const menu = document.querySelector('.menu');
-const dotKey = document.querySelector('[data-cmd="dot"]');
 const parenDepthEl = document.querySelector('[data-cmd="paren"] .depth');
 const historyBtn = document.querySelector('[data-act="history"]');
 const historyPanel = document.querySelector('.history');
 const tapeEl = document.querySelector('.tape');
 const tapeEmptyEl = document.querySelector('.tape-empty');
 
-const SEP_KEY = 'manocalc.decimalSep';
 const LONG_PRESS_MS = 500;
-const MIN_EXPR_PX = 17;
+const MIN_EXPR_PX = 21;
 
 let state = initialState();
 let lastGood = '';
@@ -330,24 +328,12 @@ document.addEventListener('click', (e) => {
   if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) closeMenu();
 });
 
-function applyDecimalSep(sep) {
-  setDecimalSep(sep);
-  dotKey.textContent = config.decimalSep;
-  document.querySelector('[data-act="sep"] .value').textContent = config.decimalSep;
-  try {
-    localStorage.setItem(SEP_KEY, config.decimalSep);
-  } catch { /* private mode: the setting just will not persist */ }
-  render();
-}
-
 menu.addEventListener('click', (e) => {
   const item = e.target.closest('[data-act]');
   if (!item) return;
   if (item.dataset.act === 'copy') {
     copyResult();
     closeMenu();
-  } else if (item.dataset.act === 'sep') {
-    applyDecimalSep(config.decimalSep === '.' ? ',' : '.');
   }
 });
 
@@ -389,10 +375,11 @@ window.addEventListener('resize', render);
 history = loadHistory(localStorage);
 renderTape();
 
+/* The decimal separator used to be switchable and was persisted per device. The
+   setting is gone and the point is always "."; drop the stored value so a phone
+   that was left on "," does not keep it. */
 try {
-  applyDecimalSep(localStorage.getItem(SEP_KEY) || '.');
-} catch {
-  applyDecimalSep('.');
-}
+  localStorage.removeItem('manocalc.decimalSep');
+} catch { /* private mode — nothing was persisted to begin with */ }
 
 render();

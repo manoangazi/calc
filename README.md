@@ -24,6 +24,17 @@ python -m http.server 8123
 
 Then open `http://localhost:8123`.
 
+**The service worker does not register on localhost.** A cache-first worker serves
+the copy of a file it captured on an earlier load, so an edit becomes invisible in
+the browser while looking like it silently failed — and clearing the cache by hand
+does not stick, because the next reload re-registers and re-caches. Skipping
+registration in dev is the only version that stays fixed. To exercise the worker
+deliberately, load `http://localhost:8123/?sw=1`.
+
+Note that `python -m http.server` sends no `Cache-Control`, so the browser's own
+HTTP cache will also serve stale modules. `fetch(url, { cache: 'reload' })` forces
+the network and rewrites that entry; a plain reload may not.
+
 ## Test
 
 ```bash
@@ -102,7 +113,7 @@ Usable from a hardware keyboard when opened on a desktop.
 
 | Key | Action |
 | --- | --- |
-| `0`–`9`, `.`, `,` | Digits and decimal point |
+| `0`–`9`, `.`, `,` | Digits and decimal point (`,` also types a `.`, for numeric keypads) |
 | `+` `-` `*` `x` `/` `^` | Operators |
 | `(` `)` | Explicit brackets — unlike the `( )` key, these do not guess |
 | `←` `→` `Home` `End` | Move the caret |

@@ -39,12 +39,11 @@
 
   <div class="menu" role="menu" hidden>
     <button type="button" role="menuitem" data-act="copy">Copy result</button>
-    <button type="button" role="menuitem" data-act="sep">Decimal point <span class="value">.</span></button>
   </div>
 </main>
 
 <div class="keypad" role="group" aria-label="Calculator keypad">
-  <button type="button" class="key fn" data-cmd="clear">C</button>
+  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">C</button>
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key fn" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
   <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">&divide;</button>
