@@ -1,6 +1,11 @@
-# Calc
+# ManoCalc
 
 A personal arithmetic calculator PWA. Static files, no dependencies, no build step.
+
+**Live: https://manoangazi.github.io/calc/**
+
+On iPhone, open that in Safari and use Share → Add to Home Screen. It then runs
+full-screen and works offline.
 
 See [BUILD-SPEC.md](BUILD-SPEC.md) for the full spec and staging plan.
 **Stages 1–5 are complete**, plus the history tape and long-press copy from
