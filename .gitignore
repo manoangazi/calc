@@ -1,0 +1,18 @@
+# Credentials — never commit. The Pages workflow publishes the repo root as-is,
+# so anything tracked here becomes a publicly readable file on the Pages site.
+.env
+.env.*
+
+# Local agent tooling and session state. Excluded because this repo is public
+# and these carry local paths, notes and identifiers that are not app code.
+.wolf/
+.claude/
+
+# Reference material, not part of the app
+Screenshot*.jpg
+Screenshot*.png
+
+# OS noise
+Thumbs.db
+.DS_Store
+desktop.ini

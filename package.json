@@ -1,0 +1,6 @@
+{
+  "name": "calc",
+  "private": true,
+  "type": "module",
+  "description": "Static PWA calculator. No dependencies, no build step; package.json exists only so Node treats src/*.js as ES modules when running tests."
+}

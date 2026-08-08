@@ -1,0 +1,337 @@
+:root {
+  --bg: #dfe4ec;
+  --surface: #ffffff;
+  --bar: #0d1f3c;
+  --accent: #1c3f77;
+  --accent-fill: #1c3f77;
+  --accent-fill-active: #14305c;
+  --on-accent: #ffffff;
+  --key-active: #ced6e2;
+  --text: #0f1b2d;
+  --muted: #66708a;
+  --danger: #a32d2d;
+  --menu-shadow: rgba(13, 31, 60, 0.22);
+  --gap: 5px;
+}
+
+/* Same navy, inverted. Every pairing here clears AA against its own surface. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a1526;
+    --surface: #15263f;
+    --bar: #050d1a;
+    --accent: #8fb3ea;
+    --accent-fill: #2d5490;
+    --accent-fill-active: #21406f;
+    --on-accent: #ffffff;
+    --key-active: #1e3554;
+    --text: #e9eef7;
+    --muted: #93a4c2;
+    --danger: #ff9a9a;
+    --menu-shadow: rgba(0, 0, 0, 0.5);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  overflow: hidden;
+}
+
+.appbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 14px;
+  background: var(--bar);
+  color: #fff;
+}
+.appbar .title { flex: 1; font-size: 17px; }
+.appbar .icon { font-size: 19px; line-height: 1; }
+.appbar .icon.disabled { opacity: 0.45; }
+.icon-btn, .text-btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  line-height: 1;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 6px;
+  transition: transform 80ms ease;
+}
+.icon-btn { font-size: 19px; }
+.text-btn { font-size: 15px; }
+.icon-btn:active, .text-btn:active { transform: scale(0.92); }
+
+.history {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.history[hidden] { display: none; }
+
+.tape {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  list-style: none;
+  margin: 0;
+  padding: var(--gap) var(--gap) calc(env(safe-area-inset-bottom) + var(--gap));
+}
+.tape li { margin-bottom: var(--gap); }
+.tape button {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: right;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 80ms ease, background 80ms ease;
+}
+.tape button:active { background: var(--key-active); transform: scale(0.99); }
+.tape-src { font-size: 15px; color: var(--muted); word-break: break-all; }
+.tape-src .op, .tape-src .paren { color: var(--accent); }
+.tape-value { font-size: 21px; }
+.tape-empty {
+  flex: 1 1 auto;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 15px;
+}
+.tape-empty[hidden] { display: none; }
+
+.display {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin: var(--gap) var(--gap) 0;
+  padding: 16px 16px 6px;
+  background: var(--surface);
+  border-radius: 6px;
+}
+
+.expression {
+  font-size: 27px;
+  line-height: 1.35;
+  text-align: right;
+  word-break: break-all;
+}
+.expression .op { color: var(--accent); padding: 0 1px; }
+.expression .paren { color: var(--accent); }
+.expression .placeholder { color: var(--muted); }
+.expression .group { white-space: pre; }
+
+/* Collapsed: one line, tail visible, head faded out rather than clipped hard. */
+.expression.collapsed {
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+}
+
+.caret {
+  display: inline-block;
+  width: 0;
+  height: 1em;
+  vertical-align: -0.14em;
+  border-left: 2px solid var(--accent);
+  animation: blink 1.06s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.result {
+  font-size: 21px;
+  text-align: right;
+  color: var(--muted);
+  min-height: 28px;
+  margin-top: 16px;
+  transform-origin: right center;
+  transition: font-size 130ms ease;
+}
+/* Held long enough that releasing will copy. */
+.result.armed { opacity: 0.55; }
+
+.display.committed .expression { font-size: 19px !important; color: var(--muted); }
+.display.committed .expression .op,
+.display.committed .expression .paren { color: var(--muted); }
+.display.committed .result {
+  font-size: 32px;
+  color: var(--text);
+  animation: commit 170ms ease-out;
+}
+@keyframes commit {
+  from { transform: scale(0.93); opacity: 0.55; }
+  to { transform: none; opacity: 1; }
+}
+.display.error .result { color: var(--danger); }
+
+.hint {
+  min-height: 15px;
+  margin-top: 4px;
+  font-size: 12px;
+  text-align: right;
+  color: var(--muted);
+}
+.display.error .hint { color: var(--danger); }
+
+.utility {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 4px;
+}
+.util {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  min-width: 64px;
+  min-height: 36px;
+  border-radius: 6px;
+  transition: transform 80ms ease;
+}
+.util:disabled { opacity: 0.4; }
+.util:active { transform: scale(0.94); }
+.util.back {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  min-width: 72px;
+  font-size: 17px;
+}
+.util.back:active { background: var(--accent-fill-active); }
+
+.menu {
+  position: absolute;
+  left: 10px;
+  bottom: 46px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: 0 6px 22px var(--menu-shadow);
+}
+.menu[hidden] { display: none; }
+.menu button {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  text-align: left;
+  padding: 12px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.menu button:active { background: var(--bg); }
+.menu .value { color: var(--accent); }
+
+.keypad {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: minmax(50px, 10dvh);
+  gap: var(--gap);
+  padding: var(--gap);
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--gap));
+}
+
+.key {
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  position: relative;
+  transition: transform 80ms ease, background 80ms ease;
+}
+.key:active { background: var(--key-active); transform: scale(0.96); }
+.key:disabled { color: var(--muted); }
+.key.fn, .key.op { color: var(--accent); }
+.key.equals { background: var(--accent-fill); color: var(--on-accent); }
+.key.equals:active { background: var(--accent-fill-active); }
+
+.key .depth {
+  font-size: 11px;
+  vertical-align: super;
+  margin-left: 2px;
+  color: var(--muted);
+}
+
+/*
+ * Landscape: the display takes only what it needs and the keypad absorbs the
+ * rest, so five rows always fit whatever the height is. Fixed row heights were
+ * the wrong tool here — any dvh value that fits one phone overflows another.
+ */
+@media (orientation: landscape) and (max-height: 560px) {
+  .appbar { padding: calc(env(safe-area-inset-top) + 6px) 14px 8px; }
+  .display {
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 8px 14px 2px;
+  }
+  .expression { font-size: 21px; }
+  .result { font-size: 17px; margin-top: 4px; min-height: 20px; }
+  .display.committed .expression { font-size: 15px !important; }
+  .display.committed .result { font-size: 24px; }
+  .hint { min-height: 0; margin-top: 0; }
+  .utility { padding: 4px 0 0; }
+  .util { min-height: 28px; font-size: 16px; }
+  .keypad {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-auto-rows: 1fr;
+  }
+  .key { font-size: 19px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result, .key, .util { transition: none; }
+  .caret, .display.committed .result { animation: none; }
+}

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0d1f3c" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#050d1a" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ManoCalc">
+<title>ManoCalc</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header class="appbar">
+  <span class="icon disabled" aria-hidden="true">&#9776;</span>
+  <span class="title">ManoCalc</span>
+  <button type="button" class="icon-btn" data-act="history" aria-label="History" aria-expanded="false">&#8635;</button>
+  <span class="icon disabled" aria-hidden="true">&#8942;</span>
+</header>
+
+<main class="display">
+  <div id="expression" class="expression"></div>
+  <div id="result" class="result" role="status" aria-live="polite" title="Long press to copy"></div>
+  <div id="hint" class="hint" role="status" aria-live="polite"></div>
+
+  <div class="utility">
+    <button type="button" class="util" data-act="menu" aria-haspopup="menu" aria-expanded="false" aria-label="More">&#8943;</button>
+    <button type="button" class="util" data-act="collapse" aria-label="Collapse expression">&#8963;</button>
+    <button type="button" class="util back" data-cmd="back" data-long="clear" aria-label="Backspace">&#9003;</button>
+  </div>
+
+  <div class="menu" role="menu" hidden>
+    <button type="button" role="menuitem" data-act="copy">Copy result</button>
+    <button type="button" role="menuitem" data-act="sep">Decimal point <span class="value">.</span></button>
+  </div>
+</main>
+
+<div class="keypad" role="group" aria-label="Calculator keypad">
+  <button type="button" class="key fn" data-cmd="clear">C</button>
+  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
+  <button type="button" class="key fn" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
+  <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">&divide;</button>
+
+  <button type="button" class="key" data-cmd="digit:7">7</button>
+  <button type="button" class="key" data-cmd="digit:8">8</button>
+  <button type="button" class="key" data-cmd="digit:9">9</button>
+  <button type="button" class="key op" data-cmd="op:*" aria-label="Multiply">&times;</button>
+
+  <button type="button" class="key" data-cmd="digit:4">4</button>
+  <button type="button" class="key" data-cmd="digit:5">5</button>
+  <button type="button" class="key" data-cmd="digit:6">6</button>
+  <button type="button" class="key op" data-cmd="op:-" aria-label="Minus">&minus;</button>
+
+  <button type="button" class="key" data-cmd="digit:1">1</button>
+  <button type="button" class="key" data-cmd="digit:2">2</button>
+  <button type="button" class="key" data-cmd="digit:3">3</button>
+  <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
+
+  <button type="button" class="key" data-cmd="digit:0">0</button>
+  <button type="button" class="key" data-cmd="zeros">00</button>
+  <button type="button" class="key" data-cmd="dot" aria-label="Decimal point">.</button>
+  <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
+</div>
+
+<section class="history" hidden aria-label="History">
+  <header class="appbar">
+    <button type="button" class="icon-btn" data-act="history-close" aria-label="Back">&#8592;</button>
+    <span class="title">History</span>
+    <button type="button" class="text-btn" data-act="history-clear">Clear</button>
+  </header>
+  <ul class="tape"></ul>
+  <p class="tape-empty">Nothing calculated yet</p>
+</section>
+
+<script type="module" src="src/ui.js"></script>
+<script type="module" src="src/sw-register.js"></script>
+</body>
+</html>
