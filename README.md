@@ -81,6 +81,21 @@ node tools/make-icons.mjs
 `eval()` and `Function()` are never used — the parser exists so that no user-typed
 string is ever executed.
 
+## Security
+
+Reviewed 2026-08-08; no vulnerabilities found. See
+[BUILD-SPEC.md](BUILD-SPEC.md#6a-security-review) for the full findings. In short:
+there are no injection sinks (every DOM write is `textContent` or `createElement`),
+user expressions are parsed rather than executed, stored history is treated as
+untrusted on read as well as on write, and the deploy workflow holds a read-only
+token.
+
+A Content-Security-Policy ships as a `<meta>` tag in `index.html`, since GitHub
+Pages cannot set response headers. It allows `'self'` only, with no
+`'unsafe-inline'` — **so do not add an inline `<script>` or a `style="…"`
+attribute.** Either will be blocked in the browser while the test suite still
+passes, so check the browser console after changing markup or styling.
+
 ## Keyboard
 
 Usable from a hardware keyboard when opened on a desktop.

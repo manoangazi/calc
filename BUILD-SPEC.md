@@ -333,6 +333,47 @@ workers need `http://localhost`, not `file://`.
 
 ---
 
+## 6a. Security review
+
+Reviewed 2026-08-08 against the deployed tree. No vulnerabilities were found. What
+was checked, and why each holds:
+
+| Area | Finding |
+| --- | --- |
+| Injection sinks | No `eval`, `Function`, `innerHTML`, `insertAdjacentHTML` or `document.write` anywhere. Every DOM write is `textContent` or `createElement`, which the browser never parses as markup. |
+| Expression evaluation | User input is parsed, never executed. The hand-written tokenizer/parser/evaluator is the only path from string to number — that is the reason it exists. |
+| Stored history | `localStorage` is editable by anything with script access to the origin, so tape entries are validated on read (`isValidEntry`) *and* again when recalled through the reducer (`load:`). A hand-edited entry can only ever produce a legal buffer. |
+| Service worker | Fixed same-origin precache allowlist, cache-first, non-GET ignored, no `message` handler, no opaque responses cached. Nothing can poison the cache. |
+| Permissions | Clipboard *write* inside a user gesture, and vibration. Nothing else is requested. |
+| Deployment | Workflow token is `contents: read`. `.env`, `.wolf/` and `.claude/` are gitignored and return 404 on the live site. |
+
+**CSP.** GitHub Pages cannot set response headers, so the policy ships as a
+`<meta http-equiv>` tag in `index.html`:
+
+```
+default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self';
+connect-src 'self'; manifest-src 'self'; worker-src 'self';
+base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+```
+
+There is no third-party code and no injection sink, so this guards against a
+future mistake rather than a present risk. `'unsafe-inline'` is deliberately
+absent from both `script-src` and `style-src` — the app has no inline script and
+no inline `style` attribute, and it must stay that way. Adding either will break
+silently in the browser while the tests still pass, so re-check the console after
+any change to markup or styling.
+
+Note that `frame-ancestors` and `form-action` are ignored when a policy is
+delivered by `<meta>` rather than a header. They are kept because they cost
+nothing and become live if the app is ever served from somewhere that can set
+headers.
+
+**Not adopted:** pinning `actions/*` to commit SHAs rather than major-version
+tags. Standard practice for GitHub's own actions, and disproportionate for a
+static deploy holding a read-only token.
+
+---
+
 ## 7. Acceptance criteria for "completed"
 
 1. Installed on the iOS home screen, launches standalone, works offline.
