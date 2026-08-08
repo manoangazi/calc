@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#0d1f3c" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#050d1a" media="(prefers-color-scheme: dark)">
@@ -33,12 +33,20 @@
 
   <div class="utility">
     <button type="button" class="util" data-act="menu" aria-haspopup="menu" aria-expanded="false" aria-label="More">&#8943;</button>
-    <button type="button" class="util" data-act="collapse" aria-label="Collapse expression">&#8963;</button>
     <button type="button" class="util back" data-cmd="back" data-long="clear" aria-label="Backspace">&#9003;</button>
   </div>
 
   <div class="menu" role="menu" hidden>
     <button type="button" role="menuitem" data-act="copy">Copy result</button>
+    <p class="menu-label" id="dp-label">Decimal places</p>
+    <div class="dp-row" role="group" aria-labelledby="dp-label">
+      <button type="button" data-act="dp" data-dp="auto" aria-pressed="true">Auto</button>
+      <button type="button" data-act="dp" data-dp="1" aria-pressed="false">1</button>
+      <button type="button" data-act="dp" data-dp="2" aria-pressed="false">2</button>
+      <button type="button" data-act="dp" data-dp="3" aria-pressed="false">3</button>
+      <button type="button" data-act="dp" data-dp="4" aria-pressed="false">4</button>
+      <button type="button" data-act="dp" data-dp="5" aria-pressed="false">5</button>
+    </div>
   </div>
 </main>
 
@@ -46,7 +54,7 @@
   <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">C</button>
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
-  <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">&divide;</button>
+  <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
 
   <button type="button" class="key" data-cmd="digit:7">7</button>
   <button type="button" class="key" data-cmd="digit:8">8</button>

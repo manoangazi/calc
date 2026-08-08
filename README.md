@@ -11,8 +11,12 @@ See [BUILD-SPEC.md](BUILD-SPEC.md) for the full spec and staging plan.
 **Stages 1–5 are complete**, plus the history tape and long-press copy from
 stage 6. Only the optional `ANS` key remains unbuilt.
 
-Arithmetic is `+ − × ÷`, exponent `^`, unary minus, decimals and arbitrarily
+Arithmetic is `+ − × /`, exponent `^`, unary minus, decimals and arbitrarily
 nested parentheses, with live evaluation as you type.
+
+Results show as many decimal places as they need, or a fixed 1–5 — pick from the
+`⋯` menu. Rounding is display-only, so changing it re-renders past history
+entries at the new setting rather than having thrown precision away.
 
 ## Run locally
 

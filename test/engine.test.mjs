@@ -1,6 +1,6 @@
 import { parse } from '../src/parser.js';
 import { evaluate } from '../src/eval.js';
-import { formatResult, formatExpression, config, setDecimalSep } from '../src/format.js';
+import { formatResult, formatExpression, config, setDecimalSep, setDecimals } from '../src/format.js';
 import { initialState, apply, preview, plainDecimal } from '../src/model.js';
 import { ERRORS } from '../src/errors.js';
 import { addEntry, parseHistory, serializeHistory, MAX_ENTRIES } from '../src/history.js';
@@ -265,6 +265,50 @@ eq(apply(committed, 'load:1+1').buf, '1+1', 'recall clears a committed state');
 eq(apply(initialState(), 'load:alert(1)').buf, '', 'illegal recall refused');
 eq(apply(initialState(), `load:${'1'.repeat(200)}`).buf, '', 'oversized recall refused');
 eq(preview(apply(initialState(), 'load:2^3^2').buf), 512, 'a recalled entry still evaluates');
+
+
+// ---- decimal places ---------------------------------------------------------
+
+eq(setDecimals(3), 3, 'a place count in range is accepted');
+eq(setDecimals(0), 'auto', 'zero places falls back to auto');
+eq(setDecimals(6), 'auto', 'more than five places falls back to auto');
+eq(setDecimals(2.5), 'auto', 'a fractional place count falls back to auto');
+eq(setDecimals('4'), 4, 'a stored string is coerced');
+eq(setDecimals('nonsense'), 'auto', 'an unparseable stored value falls back to auto');
+eq(setDecimals(null), 'auto', 'a missing stored value falls back to auto');
+
+setDecimals(2);
+eq(formatResult(1 / 3), '0.33', 'fixed places round the result');
+eq(formatResult(0.4), '0.40', 'fixed places pad with trailing zeros');
+eq(formatResult(2), '2.00', 'a whole number still shows its places');
+eq(formatResult(0), '0.00', 'zero shows its places');
+eq(formatResult(-1.567), '-1.57', 'a negative rounds and keeps its sign');
+// Not a bug: -1.005 is stored as -1.00499999999999989, so it rounds down. This
+// is the documented cost of doubles, and the reason the display caps at 12
+// significant digits rather than pretending to exactness it does not have.
+eq(formatResult(-1.005), '-1.00', 'a float that is not quite .005 rounds down');
+eq(formatResult(1234.567), g('1', '234.57'), 'grouping survives fixed rounding');
+
+// A result too small for the requested places must not read as a flat zero.
+eq(formatResult(0.0001), '0.0001', 'a value below the requested places falls back to auto');
+eq(formatResult(-0.0001), '-0.0001', 'the fallback keeps a negative sign');
+
+setDecimals(5);
+eq(formatResult(1 / 3), '0.33333', 'five places');
+setDecimals(1);
+eq(formatResult(1 / 3), '0.3', 'one place');
+eq(formatResult(0.06), '0.1', 'one place rounds up');
+
+setDecimals('auto');
+eq(formatResult(1 / 3), '0.333333333333', 'auto restores full display precision');
+eq(formatResult(0.4), '0.4', 'auto drops trailing zeros');
+eq(formatResult(2), '2', 'auto leaves a whole number bare');
+
+setDecimals(2);
+eq(formatResult(Infinity), '∞', 'fixed places do not disturb infinity');
+eq(formatResult(NaN), '—', 'fixed places do not disturb NaN');
+eq(formatResult(1e20).includes('×10^'), true, 'very large results stay in exponential form');
+setDecimals('auto');
 
 if (failures.length) {
   console.error(`\n${failures.length} failed, ${pass} passed\n`);

@@ -1,5 +1,5 @@
 import { initialState, apply, preview, openDepth } from './model.js';
-import { formatExpression, formatResult } from './format.js';
+import { formatExpression, formatResult, config, setDecimals } from './format.js';
 import { ERRORS } from './errors.js';
 import { addEntry, loadHistory, saveHistory } from './history.js';
 
@@ -9,7 +9,6 @@ const resultEl = document.getElementById('result');
 const hintEl = document.getElementById('hint');
 const keypad = document.querySelector('.keypad');
 const utility = document.querySelector('.utility');
-const collapseBtn = document.querySelector('[data-act="collapse"]');
 const menuBtn = document.querySelector('[data-act="menu"]');
 const menu = document.querySelector('.menu');
 const parenDepthEl = document.querySelector('[data-cmd="paren"] .depth');
@@ -18,12 +17,12 @@ const historyPanel = document.querySelector('.history');
 const tapeEl = document.querySelector('.tape');
 const tapeEmptyEl = document.querySelector('.tape-empty');
 
+const DP_KEY = 'manocalc.decimals';
 const LONG_PRESS_MS = 500;
 const MIN_EXPR_PX = 24;
 
 let state = initialState();
 let lastGood = '';
-let collapsed = false;
 let history = [];
 let flashMsg = '';
 let flashTimer = null;
@@ -86,14 +85,7 @@ function render() {
   const depth = openDepth(state.buf);
   parenDepthEl.textContent = depth > 0 ? String(depth) : '';
 
-  // The collapse control only means anything once the expression has wrapped.
-  exprEl.classList.toggle('collapsed', collapsed);
   fitExpression();
-  const wrapped = collapsed || exprEl.scrollHeight > exprEl.clientHeight + 2;
-  collapseBtn.disabled = !wrapped;
-  collapseBtn.textContent = collapsed ? '⌄' : '⌃';
-  if (collapsed) exprEl.scrollLeft = exprEl.scrollWidth;
-  else if (!wrapped) collapsed = false;
 }
 
 /**
@@ -308,11 +300,6 @@ bindHoldToCopy(resultEl);
 
 /* ---- utility controls and menu ------------------------------------------ */
 
-collapseBtn.addEventListener('click', () => {
-  collapsed = !collapsed;
-  render();
-});
-
 function closeMenu() {
   menu.hidden = true;
   menuBtn.setAttribute('aria-expanded', 'false');
@@ -328,12 +315,32 @@ document.addEventListener('click', (e) => {
   if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn) closeMenu();
 });
 
+/**
+ * Rounding is display-only, so the tape re-renders too: an entry calculated at
+ * 2 places shows 5 places the moment the setting changes, because the stored
+ * value never lost anything.
+ */
+function applyDecimals(value) {
+  const applied = setDecimals(value);
+  for (const btn of menu.querySelectorAll('[data-act="dp"]')) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.dp === String(applied)));
+  }
+  try {
+    localStorage.setItem(DP_KEY, String(applied));
+  } catch { /* private mode: the setting just will not persist */ }
+  renderTape();
+  render();
+}
+
 menu.addEventListener('click', (e) => {
   const item = e.target.closest('[data-act]');
   if (!item) return;
   if (item.dataset.act === 'copy') {
     copyResult();
     closeMenu();
+  } else if (item.dataset.act === 'dp') {
+    // Menu stays open — picking places is something you compare, not commit to.
+    applyDecimals(item.dataset.dp);
   }
 });
 
@@ -382,4 +389,9 @@ try {
   localStorage.removeItem('manocalc.decimalSep');
 } catch { /* private mode — nothing was persisted to begin with */ }
 
-render();
+/* setDecimals validates, so a hand-edited storage value cannot get through. */
+let storedDecimals = null;
+try {
+  storedDecimals = localStorage.getItem(DP_KEY);
+} catch { /* private mode */ }
+applyDecimals(storedDecimals);

@@ -160,14 +160,6 @@ body {
 .expression .placeholder { color: var(--muted); }
 .expression .group { white-space: pre; }
 
-/* Collapsed: one line, tail visible, head faded out rather than clipped hard. */
-.expression.collapsed {
-  white-space: nowrap;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
-  mask-image: linear-gradient(to right, transparent 0, #000 28px);
-}
-
 .caret {
   display: inline-block;
   width: 0;
@@ -232,6 +224,9 @@ body {
   border-radius: 6px;
   transition: transform 80ms ease;
 }
+/* The ⋯ glyph is drawn thin at any size, so it needs the weight to hold its own
+   next to the filled backspace key. */
+.util[data-act="menu"] { font-weight: 700; font-size: 21px; }
 .util:disabled { opacity: 0.4; }
 .util:active { transform: scale(0.94); }
 .util.back {
@@ -250,7 +245,9 @@ body {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  min-width: 190px;
+  min-width: 272px;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
   padding: 4px;
   background: var(--surface);
   border-radius: 8px;
@@ -271,8 +268,39 @@ body {
   justify-content: space-between;
   gap: 16px;
 }
-.menu button:active { background: var(--bg); }
+.menu > button:active { background: var(--bg); }
 .menu .value { color: var(--accent); }
+
+.menu-label {
+  margin: 2px 0 4px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+/* Six choices in one row: one tap to pick, no cycling through states. */
+.dp-row {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px 6px;
+}
+.dp-row button {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 11px 0;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  transition: background 80ms ease;
+}
+.dp-row button[aria-pressed="true"] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+.dp-row button:first-child { flex: 1.5 1 0; }
 
 .keypad {
   flex: 0 0 auto;
@@ -300,9 +328,22 @@ body {
 .key:active { background: var(--key-active); transform: scale(0.96); }
 .key:disabled { color: var(--muted); }
 .key.fn, .key.op { color: var(--accent); }
-/* Operators carry larger glyphs than the digits, as in ClevCalc — ÷ × − + read
-   at a glance rather than being scanned. */
-.key.op { font-size: 35px; }
+/*
+ * Operators carry larger glyphs than the digits, as in ClevCalc.
+ *
+ * Sized by measured ink, not by font-size. "×" and "+" draw well below their em
+ * box, so at 35px their ink was 17px against the digits' 20px — the operators
+ * were rendering *smaller* than the digits despite the larger font-size. These
+ * values put their ink at 20px. Re-measure with canvas actualBoundingBox rather
+ * than trusting font-size if these are ever changed.
+ */
+.key.op { font-size: 41px; }
+/* "/" is a full-height glyph where × − + ^ sit around the x-height, so at an
+   equal font-size its ink is about 1.4x taller and it reads as the odd one out.
+   Sized by measured ink height, not by font-size, to land beside the others. */
+/* Set smaller than its neighbours, and a diagonal hairline besides, so it needs
+   extra weight to carry the same visual mass as × and +. */
+.key[data-cmd="op:/"] { font-size: 24px; font-weight: 700; }
 .key.equals { background: var(--accent-fill); color: var(--on-accent); }
 .key.equals:active { background: var(--accent-fill-active); }
 
@@ -336,6 +377,10 @@ body {
   .display.committed .result { font-size: 30px; }
   .hint { min-height: 0; margin-top: 0; font-size: 13px; }
   .utility { padding: 4px 0 0; }
+  /* The card is only ~100px tall here, so a menu anchored to its bottom edge runs
+     off the top of the screen. Grow it downward from the card instead — overlaying
+     the keypad is fine for a popover; leaving the viewport is not. */
+  .menu { top: 4px; bottom: auto; }
   .util { min-height: 30px; font-size: 20px; }
   .util.back { min-height: 34px; font-size: 19px; }
   .keypad {
@@ -344,7 +389,10 @@ body {
     grid-auto-rows: 1fr;
   }
   .key { font-size: 24px; }
+  /* 37px rows: an operator much above 30px overflows its key box, since
+     line-height 1 does not contain a glyph this size. */
   .key.op { font-size: 30px; }
+  .key[data-cmd="op:/"] { font-size: 20px; }
 }
 
 /* Shortest landscape phones (SE-class, 320px). Five key rows leave about 26px
@@ -356,8 +404,12 @@ body {
   .display.committed .result { font-size: 25px; }
   .util { min-height: 26px; font-size: 17px; }
   .util.back { min-height: 28px; font-size: 16px; }
-  .key { font-size: 20px; }
-  .key.op { font-size: 25px; }
+  /* Key rows are only ~24px here, so line boxes must stay under that or the
+     glyphs clip. Ink parity with the digits is not achievable at this height —
+     fitting wins. */
+  .key { font-size: 17px; }
+  .key.op { font-size: 22px; }
+  .key[data-cmd="op:/"] { font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

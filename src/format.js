@@ -6,7 +6,25 @@
 export const config = {
   decimalSep: '.',
   groupSep: ' ',
+  decimals: 'auto',
 };
+
+export const DECIMAL_CHOICES = ['auto', 1, 2, 3, 4, 5];
+const MIN_DECIMALS = 1;
+const MAX_DECIMALS = 5;
+
+/**
+ * 'auto' shows what the number actually is; 1..5 fixes the places. Display only —
+ * the stored result keeps full precision, so changing this re-renders old history
+ * entries without anything having been lost. Anything outside the range falls back
+ * to 'auto', which also sanitises whatever comes back from localStorage.
+ */
+export function setDecimals(value) {
+  const n = typeof value === 'string' ? Number(value) : value;
+  config.decimals =
+    Number.isInteger(n) && n >= MIN_DECIMALS && n <= MAX_DECIMALS ? n : 'auto';
+  return config.decimals;
+}
 
 export function setDecimalSep(sep) {
   config.decimalSep = sep === ',' ? ',' : '.';
@@ -39,16 +57,29 @@ function groupDecimalString(s) {
   return (neg ? '-' : '') + out;
 }
 
+const sci = (x) => x.toExponential(6).replace('e', '×10^').replace('+', '');
+
 export function formatResult(n) {
   if (Number.isNaN(n)) return '—';
   if (!Number.isFinite(n)) return n > 0 ? '∞' : '-∞';
-  if (n === 0) return '0';
+
+  const places = config.decimals;
+  const fixed = places !== 'auto';
+  if (n === 0) return fixed ? (0).toFixed(places) : '0';
 
   const rounded = Number(n.toPrecision(SIG_DIGITS));
   const mag = Math.abs(rounded);
-  if (mag >= 1e15 || mag < 1e-9) {
-    return rounded.toExponential(6).replace('e', '×10^').replace('+', '');
+  if (mag >= 1e15) return sci(rounded);
+
+  if (fixed) {
+    const out = rounded.toFixed(places);
+    // A non-zero result must never read as a flat '0.00'. When the requested
+    // places cannot show it at all, fall through and display it the auto way
+    // rather than claim the answer is zero.
+    if (Number(out) !== 0) return groupDecimalString(out);
   }
+
+  if (mag < 1e-9) return sci(rounded);
   return groupDecimalString(toPlainString(rounded));
 }
 

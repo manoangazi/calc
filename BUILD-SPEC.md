@@ -118,7 +118,7 @@ Modelled on the ClevCalc reference layout.
 │                    93 610   │  live result  26px, dimmed, right-aligned
 │  ⋯        ⌃              ⌫  │  utility row  inside the same card
 ├─────────────────────────────┤
-│  C    ( )    ^      ÷       │
+│  C    ( )    ^      /       │
 │  7     8     9      ×       │
 │  4     5     6      −       │
 │  1     2     3      +       │
@@ -136,11 +136,21 @@ model, so it belongs in stage 1, not in polish.
 `× ÷ + −` in the accent colour. It makes a long expression scannable at a glance
 and costs one span-per-token in the renderer.
 
-**Type scale on the keypad.** Digits are 28px semibold; the operators `÷ × − + ^`
-are 35px, a quarter larger, so they read at a glance rather than being scanned —
-the same relationship ClevCalc uses. `C`, `( )` and `=` stay at digit size. Every
-size has a landscape counterpart, plus a third set below 360px height where five
-key rows leave about 26px each.
+**Type scale on the keypad — size by ink, not by font-size.** Digits are 28px
+semibold. `×` and `+` draw well below their em box, so at the same nominal size
+they render *smaller* than a digit: at 35px their ink measured 20px against the
+digits' 20px only after being pushed to 41px. Font-size is therefore the wrong
+number to reason about here. Measure with canvas `actualBoundingBoxAscent` +
+`actualBoundingBoxDescent` and match on that.
+
+The division key shows `/` rather than `÷`. As a full-height diagonal it is the
+opposite case — at an equal font-size its ink runs about 1.4× the others — so it
+is set smaller (24px) and heavier (700) to carry the same visual mass.
+
+`C`, `( )` and `=` stay at digit size. Every value has a landscape counterpart
+and a third set below 360px height. In both landscape blocks the constraint is
+the key box, not the ink: with `line-height: 1` a glyph much above the row height
+overflows its key, so fitting wins over parity there.
 
 **Clear is not a function key.** `C` carries its own colour (`--danger`) on its
 own tint rather than sharing the accent with `( )` and `^` — it throws work away
@@ -162,8 +172,13 @@ Long-press the key to force the opposite choice. Nesting depth is shown as a sma
 count on the key face when depth > 0 — that replaces the separate depth badge.
 
 **Utility row** sits inside the display card, not in the keypad grid:
-`⋯` (overflow — copy result, settings), `⌃` (collapse the expression to one line
-when it has wrapped), `⌫` (backspace, accent-filled). Long-press `⌫` clears.
+`⋯` (overflow — copy result, decimal places) and `⌫` (backspace, accent-filled).
+Long-press `⌫` clears.
+
+A `⌃` control used to sit between them, collapsing a wrapped expression to one
+line. It was removed: it is disabled until an expression wraps past three lines,
+which almost never happens, so in practice it was a permanently dead button in
+the middle of the row. The auto-shrink already keeps long expressions readable.
 
 **Keypad rules that matter on a phone:**
 
@@ -184,6 +199,18 @@ one less thing to knock out of place — the owner uses `.` only. It still lives
 one config object in `format.js` rather than scattered through the renderer, so
 reinstating a switch is a small change. Grouping uses a space, never a comma, so
 it could not collide with a comma decimal in any case.
+
+**Decimal places** are chosen from the overflow menu: `Auto` or 1–5, as a row of
+six buttons rather than a control you cycle through — one tap to pick, and the
+current choice is visible without opening anything else. The menu stays open on
+a pick, because choosing places is something you compare rather than commit to.
+
+Rounding is display-only. The stored result keeps full precision, so switching
+from 2 places to 5 re-renders old history entries at 5 places without anything
+having been lost. One deliberate exception: when a non-zero result is too small
+for the chosen places, it is shown the `Auto` way instead of as a flat `0.00` —
+a calculator claiming a non-zero answer is zero is worse than one that ignores
+the setting for a moment.
 
 **`00` key** inserts two zeros, subject to the same leading-zero guard as `0`.
 
@@ -236,8 +263,7 @@ This is the stage that decides whether you actually use the thing.
   opposite paren.
 - Operator replacement (`5+×` → `5×`), leading-zero and double-decimal guards,
   `00` guard.
-- Depth count rendered on the `( )` key face; `⌃` collapse control once the
-  expression wraps.
+- Depth count rendered on the `( )` key face.
 - Haptics via a short `navigator.vibrate` where supported, silent fallback on iOS.
 - App bar with the overflow menu (`⋯` → copy result).
 
@@ -376,10 +402,11 @@ no inline `style` attribute, and it must stay that way. Adding either will break
 silently in the browser while the tests still pass, so re-check the console after
 any change to markup or styling.
 
-Note that `frame-ancestors` and `form-action` are ignored when a policy is
-delivered by `<meta>` rather than a header. They are kept because they cost
-nothing and become live if the app is ever served from somewhere that can set
-headers.
+`frame-ancestors` is deliberately absent: it is ignored when a policy arrives by
+`<meta>` rather than a header, and including it logs a console error on every
+load. Clickjacking protection therefore has to come from a real
+`X-Frame-Options`/`frame-ancestors` header, which GitHub Pages cannot set — an
+accepted limitation for a calculator with no accounts and no state worth framing.
 
 **Not adopted:** pinning `actions/*` to commit SHAs rather than major-version
 tags. Standard practice for GitHub's own actions, and disproportionate for a
