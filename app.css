@@ -150,7 +150,7 @@ body {
 }
 
 .expression {
-  font-size: 34px;
+  font-size: 39px;
   line-height: 1.35;
   text-align: right;
   word-break: break-all;
@@ -190,7 +190,7 @@ body {
 /* Held long enough that releasing will copy. */
 .result.armed { opacity: 0.55; }
 
-.display.committed .expression { font-size: 24px !important; color: var(--muted); }
+.display.committed .expression { font-size: 28px !important; color: var(--muted); }
 .display.committed .expression .op,
 .display.committed .expression .paren { color: var(--muted); }
 .display.committed .result {
@@ -300,6 +300,9 @@ body {
 .key:active { background: var(--key-active); transform: scale(0.96); }
 .key:disabled { color: var(--muted); }
 .key.fn, .key.op { color: var(--accent); }
+/* Operators carry larger glyphs than the digits, as in ClevCalc — ÷ × − + read
+   at a glance rather than being scanned. */
+.key.op { font-size: 35px; }
 .key.equals { background: var(--accent-fill); color: var(--on-accent); }
 .key.equals:active { background: var(--accent-fill-active); }
 
@@ -327,9 +330,9 @@ body {
     min-height: 0;
     padding: 8px 14px 2px;
   }
-  .expression { font-size: 26px; }
+  .expression { font-size: 30px; }
   .result { font-size: 21px; margin-top: 4px; min-height: 25px; }
-  .display.committed .expression { font-size: 19px !important; }
+  .display.committed .expression { font-size: 22px !important; }
   .display.committed .result { font-size: 30px; }
   .hint { min-height: 0; margin-top: 0; font-size: 13px; }
   .utility { padding: 4px 0 0; }
@@ -341,18 +344,20 @@ body {
     grid-auto-rows: 1fr;
   }
   .key { font-size: 24px; }
+  .key.op { font-size: 30px; }
 }
 
 /* Shortest landscape phones (SE-class, 320px). Five key rows leave about 26px
    each, so the enlarged type has to come back down or it crowds the key. */
 @media (orientation: landscape) and (max-height: 360px) {
-  .expression { font-size: 22px; }
+  .expression { font-size: 25px; }
   .result { font-size: 18px; min-height: 21px; }
-  .display.committed .expression { font-size: 16px !important; }
+  .display.committed .expression { font-size: 18px !important; }
   .display.committed .result { font-size: 25px; }
   .util { min-height: 26px; font-size: 17px; }
   .util.back { min-height: 28px; font-size: 16px; }
   .key { font-size: 20px; }
+  .key.op { font-size: 25px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

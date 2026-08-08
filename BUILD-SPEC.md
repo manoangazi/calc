@@ -113,9 +113,9 @@ Modelled on the ClevCalc reference layout.
 │ ☰  Calc              ⟲   ⋮  │  app bar (dark)
 ├─────────────────────────────┤
 │                             │
-│            5 566×555÷33     │  expression   27px, right-aligned, wraps
+│            5 566×555÷33     │  expression   39px, right-aligned, wraps
 │                             │
-│                    93 610   │  live result  21px, dimmed, right-aligned
+│                    93 610   │  live result  26px, dimmed, right-aligned
 │  ⋯        ⌃              ⌫  │  utility row  inside the same card
 ├─────────────────────────────┤
 │  C    ( )    ^      ÷       │
@@ -135,6 +135,17 @@ model, so it belongs in stage 1, not in polish.
 **Operators are tinted in the expression.** Digits render in primary text,
 `× ÷ + −` in the accent colour. It makes a long expression scannable at a glance
 and costs one span-per-token in the renderer.
+
+**Type scale on the keypad.** Digits are 28px semibold; the operators `÷ × − + ^`
+are 35px, a quarter larger, so they read at a glance rather than being scanned —
+the same relationship ClevCalc uses. `C`, `( )` and `=` stay at digit size. Every
+size has a landscape counterpart, plus a third set below 360px height where five
+key rows leave about 26px each.
+
+**Clear is not a function key.** `C` carries its own colour (`--danger`) on its
+own tint rather than sharing the accent with `( )` and `^` — it throws work away
+and should not look like a sibling of the keys that build an expression. Measured
+6.1:1 in light and 7.1:1 in dark.
 
 **Digit grouping while typing.** Integer parts are grouped with a thin space
 (`5 566`), never a comma — a comma would collide with the decimal separator on a
@@ -249,7 +260,7 @@ retyping it.
 
 - Dark mode via `prefers-color-scheme`, both palettes checked at AA contrast.
 - Key press animation under 100 ms; result transition on `=`.
-- Expression window auto-shrinks font from 24 → 17 px as the line grows.
+- Expression window auto-shrinks font from 39 → 24 px as the line grows.
 - Landscape layout (wider keypad, same rows).
 - VoiceOver labels and `aria-keyshortcuts` on every key.
 - Hardware-keyboard support for when it is opened on a desktop.

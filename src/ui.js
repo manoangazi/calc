@@ -19,7 +19,7 @@ const tapeEl = document.querySelector('.tape');
 const tapeEmptyEl = document.querySelector('.tape-empty');
 
 const LONG_PRESS_MS = 500;
-const MIN_EXPR_PX = 21;
+const MIN_EXPR_PX = 24;
 
 let state = initialState();
 let lastGood = '';
