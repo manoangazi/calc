@@ -5,6 +5,7 @@ const suites = [
   'test/engine.test.mjs',
   'test/hex.test.mjs',
   'test/units.test.mjs',
+  'test/currency.test.mjs',
   'test/assets.test.mjs',
   'test/fuzz.test.mjs',
 ];

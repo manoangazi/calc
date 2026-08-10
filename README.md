@@ -71,6 +71,31 @@ pressure, energy. Worth knowing:
 Conversions run on doubles, so `37 °C` is `98.60000000000001` before the
 display's 12-significant-digit rounding turns it back into `98.6`.
 
+## Currency
+
+An eleventh category inside CON, not a fourth mode — same pickers, same
+converted line, same `value * factor` arithmetic; only the factor comes from a
+feed instead of a table. Rates are ECB daily reference rates from
+[Frankfurter](https://api.frankfurter.dev), fetched with no API key: this repo
+is public with no server, and a committed key is world-readable on sight, so
+every near-realtime provider was ruled out on that basis alone.
+
+- **Refreshed once a day, on open, not on a schedule.** A PWA cannot wake itself
+  at a fixed hour, so "first open of the day" is the honest version of that. The
+  request is 237 bytes gzipped — daily refresh costs about 7 KB a month.
+- **Cached, so it still works offline** — from whatever was last fetched. The
+  rate note under the converted line shows the feed's own date, and turns red
+  with the word `Stale` when the app has not reached the feed in 24 hours.
+  Staleness is keyed off *when we last fetched*, never off the feed's date
+  itself: the ECB does not publish at weekends, so Friday's rate read on a
+  Sunday is correct, not stale.
+- **No forward cover.** ZAR forward points are an OTC bank quote with no free
+  feed; South Africa's Reserve Bank publishes bond yields, not FX forwards. A
+  covered-interest-parity number computed from hand-typed rates would look like
+  a quote without being one, so it was left out rather than faked.
+- 18 currencies: the majors plus the SA trade partners and the CMA pegs
+  (`BWP`, `NAD`).
+
 ## Run locally
 
 Service workers and ES modules need a real origin, so `file://` will not work.
@@ -98,10 +123,16 @@ the network and rewrites that entry; a plain reload may not.
 node test/run.mjs
 ```
 
-`test/engine.test.mjs`, `test/hex.test.mjs` and `test/units.test.mjs` are the
-assertion suites. The units suite matters more than its size suggests: a wrong
-factor is a silently wrong answer rather than a crash, so every category is
-pinned to an independently known value.
+`test/engine.test.mjs`, `test/hex.test.mjs`, `test/units.test.mjs` and
+`test/currency.test.mjs` are the assertion suites. The units and currency suites
+matter more than their size suggests: a wrong factor, or a reciprocal taken the
+wrong way round, is a silently wrong answer rather than a crash, so every
+category is pinned to an independently known value.
+`test/currency.test.mjs` drives a stubbed `fetch` and a stubbed storage object —
+nothing in the suite touches the network — and pins the one case a future
+refactor is most likely to reintroduce: a Friday rate read on a Sunday must not
+be flagged stale, because staleness tracks when *we* last fetched, not the
+feed's own date.
 `test/fuzz.test.mjs` throws 100k random expressions and 20k random keypad
 sequences at each engine and asserts that nothing but a `CalcError` ever escapes;
 its hex pass also asserts no iteration runs slow, which is how an unbounded
@@ -149,6 +180,7 @@ node tools/make-icons.mjs
 | `src/eval.js` | AST → number (doubles), and AST → BigInt for hex |
 | `src/radix.js` | Rewriting the expression buffer between bases |
 | `src/units.js` | The unit table and the conversion arithmetic |
+| `src/currency.js` | The exchange-rate feed: fetch, validation, caching, staleness |
 | `src/format.js` | Number → display string; expression → tinted spans |
 | `src/model.js` | Expression buffer and keypad command reducer |
 | `src/ui.js` | DOM binding and event delegation |
@@ -176,6 +208,10 @@ Pages cannot set response headers. It allows `'self'` only, with no
 `'unsafe-inline'` — **so do not add an inline `<script>` or a `style="…"`
 attribute.** Either will be blocked in the browser while the test suite still
 passes, so check the browser console after changing markup or styling.
+
+`connect-src` carries one exception, `https://api.frankfurter.dev`, for the
+currency feed — the only host this app is allowed to reach off-origin. Widen it
+by naming a host, never by relaxing it to a scheme.
 
 ## Keyboard
 

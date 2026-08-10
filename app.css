@@ -240,6 +240,20 @@ body {
 .converted[hidden] { display: none; }
 .converted.armed { opacity: 0.55; }
 
+/* Where the currency figure came from and how old it is. Muted, because on a
+   normal day it is provenance rather than a warning.
+   `.stale` uses --danger rather than a literal red so it stays legible in dark
+   mode, where the token is #ff9a9a against navy — a hard-coded red would be
+   almost invisible there, on exactly the screen most used at night. */
+.rate-note {
+  min-height: 15px;
+  font-size: 12px;
+  text-align: right;
+  color: var(--muted);
+}
+.rate-note[hidden] { display: none; }
+.rate-note.stale { color: var(--danger); }
+
 .hint {
   min-height: 19px;
   margin-top: 4px;
@@ -486,6 +500,7 @@ body {
   .display.committed .expression { font-size: 22px !important; }
   .display.committed .result { font-size: 30px; }
   .converted { font-size: 15px; min-height: 18px; margin-top: 0; }
+  .rate-note { font-size: 11px; min-height: 13px; }
   .hint { min-height: 0; margin-top: 0; font-size: 13px; }
   .utility { padding: 4px 0 0; }
   .conv select { font-size: 13px; padding: 4px 6px; }
@@ -518,6 +533,7 @@ body {
   .display.committed .expression { font-size: 18px !important; }
   .display.committed .result { font-size: 25px; }
   .converted { font-size: 13px; min-height: 15px; }
+  .rate-note { font-size: 10px; min-height: 12px; }
   .util { min-height: 26px; font-size: 17px; }
   .util.back { min-height: 28px; font-size: 16px; }
   .conv select { font-size: 12px; padding: 3px 5px; }

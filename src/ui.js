@@ -3,7 +3,8 @@ import { formatExpression, formatResult, config, setDecimals, setRadix } from '.
 import { ERRORS } from './errors.js';
 import { addEntry, loadHistory, saveHistory, fromStored } from './history.js';
 import { convertBuffer, DEC, HEX } from './radix.js';
-import { CATEGORIES, DEFAULT_CATEGORY, convert, defaultPair, findCategory, findUnit } from './units.js';
+import { CATEGORIES, DEFAULT_CATEGORY, applyRates, convert, defaultPair, findCategory, findUnit } from './units.js';
+import { fetchRates, isStale, loadCached, needsRefresh, saveCached } from './currency.js';
 
 const card = document.querySelector('.display');
 const exprEl = document.getElementById('expression');
@@ -21,6 +22,7 @@ const convFromSel = document.getElementById('conv-from');
 const convToSel = document.getElementById('conv-to');
 const catBlock = document.querySelector('.cat-block');
 const catRow = document.querySelector('.cat-row');
+const rateNoteEl = document.getElementById('rate-note');
 // One per keypad: only the visible one is on screen, but both are kept in step
 // so switching mode never reveals a stale bracket count.
 const parenDepthEls = [...document.querySelectorAll('[data-cmd="paren"] .depth')];
@@ -44,6 +46,11 @@ let flashTimer = null;
    engine modules need to know nothing about it. */
 let mode = 'dec';
 let conversion = null;
+
+/* The rate set currently loaded into the currency category, or null if we have
+   never reached the feed on this device. Held here only so the caption can name
+   its date and age — the numbers themselves live on the unit objects. */
+let rates = null;
 
 /* ---- rendering ---------------------------------------------------------- */
 
@@ -134,13 +141,65 @@ function fitExpression() {
  * went wrong, and a second complaint underneath just reads as noise.
  */
 function renderConverted(value) {
+  renderRateNote();
   if (mode !== 'con' || !conversion || value === null
       || typeof value !== 'number' || !Number.isFinite(value)) {
     convertedEl.textContent = '';
     return;
   }
   const out = convert(value, conversion.from, conversion.to);
+  // A missing rate is captioned, not blanked. Every other empty case above is a
+  // question the user has not finished asking; this one is a question we cannot
+  // answer, and in a money context a blank line reads as zero.
+  if (out === null) {
+    convertedEl.textContent = 'Rates unavailable';
+    return;
+  }
   convertedEl.textContent = `${formatResult(out)} ${conversion.to.label}`;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** '2026-08-10' → '10 Aug'. Parsed by hand: `new Date('…')` on a bare date is
+    UTC, which renders as the previous day for anyone west of Greenwich. */
+function shortDate(iso) {
+  const [, m, d] = iso.split('-');
+  return `${Number(d)} ${MONTHS[Number(m) - 1]}`;
+}
+
+/**
+ * The provenance line under the converted value, in the currency category only.
+ *
+ * These are ECB daily reference rates, not dealing rates, so the date is not
+ * decoration — it is the difference between a number you can quote and a number
+ * you can check against. It sits on the display card next to the figure it
+ * qualifies rather than in the menu: a staleness warning you have to go looking
+ * for is a staleness warning that does not exist.
+ *
+ * Red keys off when we last *reached* the feed, never off the feed's own date.
+ * The ECB does not publish at weekends, so a Friday rate read on a Sunday is
+ * correct; flagging it would go red every weekend and train the user to ignore
+ * the one signal that matters.
+ */
+function renderRateNote() {
+  const live = mode === 'con' && conversion?.category.live === true;
+  rateNoteEl.hidden = !live;
+  if (!live) {
+    rateNoteEl.textContent = '';
+    rateNoteEl.classList.remove('stale');
+    return;
+  }
+  if (!rates) {
+    rateNoteEl.textContent = 'No rates yet';
+    rateNoteEl.classList.add('stale');
+    return;
+  }
+  const stale = isStale(rates, Date.now());
+  // The word carries the meaning, the colour only makes it findable — colour
+  // alone fails for a colour-blind user and in bright sunlight.
+  rateNoteEl.textContent = `ECB ${shortDate(rates.date)}${stale ? ' · Stale' : ''}`;
+  rateNoteEl.classList.toggle('stale', stale);
 }
 
 /* ---- input -------------------------------------------------------------- */
@@ -505,6 +564,24 @@ for (const category of CATEGORIES) {
   catRow.append(btn);
 }
 
+/**
+ * Fetch rates and adopt them if they arrive.
+ *
+ * Fire-and-forget by design and never awaited: a failure keeps the cached set,
+ * and the caption is already saying how old that is. There is no spinner — the
+ * figure quietly correcting itself a moment later is the whole feedback, and a
+ * spinner would imply the calculator was waiting on something, which it is not.
+ */
+function refreshRates() {
+  fetchRates().then((snap) => {
+    if (!snap) return;
+    rates = snap;
+    applyRates(snap);
+    saveCached(localStorage, snap);
+    render();
+  });
+}
+
 for (const [sel, side] of [[convFromSel, 'from'], [convToSel, 'to']]) {
   sel.addEventListener('change', () => {
     if (!conversion) return;
@@ -528,6 +605,11 @@ menu.addEventListener('click', (e) => {
     selectCategory(item.dataset.cat);
     closeMenu();
     render();
+  } else if (item.dataset.act === 'rates') {
+    // For the case the daily gate cannot cover: the caption went red while you
+    // were offline and you have just reconnected.
+    refreshRates();
+    closeMenu();
   }
 });
 
@@ -590,3 +672,19 @@ applyDecimals(storedDecimals);
    decimal, so a keypad full of letters is never the first thing you meet. */
 selectCategory(DEFAULT_CATEGORY);
 applyMode('dec', { rewrite: false });
+
+/* Rates, unlike the mode, *are* persisted: the alternative is an app that cannot
+   convert currency until it has been online, including on the flight where you
+   most want it to. Loaded synchronously so the first paint already has numbers,
+   then corrected in the background if today's set has not been fetched yet. */
+try {
+  rates = loadCached(localStorage);
+} catch { /* private mode */ }
+if (rates) applyRates(rates);
+
+/* Fire-and-forget, and deliberately not awaited anywhere. Offline, a DNS failure
+   and a CSP block are ordinary conditions here rather than errors — this is a
+   calculator that works completely without the network, and a rate refresh must
+   never be able to take the boot path down with it. */
+if (needsRefresh(rates, Date.now())) refreshRates();
+render();

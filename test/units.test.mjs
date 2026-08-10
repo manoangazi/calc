@@ -35,9 +35,16 @@ const unit = (catId, unitId) => {
 
 /* ---- table integrity ----------------------------------------------------- */
 
-eq(CATEGORIES.length, 10, 'ten categories');
+eq(CATEGORIES.length, 11, 'eleven categories');
 
-for (const cat of CATEGORIES) {
+/* Currency's factors arrive from a feed and are null until they do, so it fails
+   every static assertion below by design. It is not thereby less covered:
+   currency.test.mjs applies a fixture snapshot and then runs this same integrity
+   and round-trip battery against it. */
+const STATIC = CATEGORIES.filter((c) => !c.live);
+eq(STATIC.length, 10, 'ten categories with static factors');
+
+for (const cat of STATIC) {
   if (cat.units.length >= 2) pass++;
   else failures.push(`${cat.id}: a category with one unit converts nothing`);
 
@@ -68,7 +75,7 @@ for (const cat of CATEGORIES) {
 
 const SAMPLES = [0, 1, -40, 0.5, 123.456, -7, 1e6];
 
-for (const cat of CATEGORIES) {
+for (const cat of STATIC) {
   for (const a of cat.units) {
     for (const x of SAMPLES) eq(convert(x, a, a), x, `${cat.id}/${a.id}: identity`);
     for (const b of cat.units) {
@@ -138,7 +145,7 @@ const rand = () => {
 
 let clean = 0;
 for (let i = 0; i < 20000; i++) {
-  const cat = CATEGORIES[Math.floor(rand() * CATEGORIES.length)];
+  const cat = STATIC[Math.floor(rand() * STATIC.length)];
   const a = cat.units[Math.floor(rand() * cat.units.length)];
   const b = cat.units[Math.floor(rand() * cat.units.length)];
   const x = (rand() - 0.5) * 10 ** Math.floor(rand() * 20 - 10);

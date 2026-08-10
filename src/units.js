@@ -8,6 +8,8 @@
  * anywhere in this file — a conversion always goes through the base.
  */
 
+import { CODES as CURRENCY_CODES, PIVOT as CURRENCY_BASE } from './currency.js';
+
 /** value in `unit` → value in the category's base unit. */
 const toBase = (value, unit) => value * unit.factor + (unit.offset ?? 0);
 
@@ -26,6 +28,10 @@ export function convert(value, from, to) {
   // x for most f, so without this, picking the same unit on both sides would
   // shift the last digit of a number the user can see is unchanged.
   if (from === to) return value;
+  // Currency factors start null and stay null until a feed arrives. Guarded here
+  // rather than in the UI because the arithmetic would quietly yield NaN, and
+  // "no rates yet" and "the sum was nonsense" need different captions.
+  if (from.factor === null || to.factor === null) return null;
   return fromBase(toBase(value, from), to);
 }
 
@@ -193,7 +199,45 @@ export const CATEGORIES = [
       { id: 'BTU', label: 'BTU', factor: 1055.05585262 },
     ],
   },
+  {
+    // The one category whose factors are not knowable in advance. It is still an
+    // ordinary category in every other respect — same pickers, same converted
+    // line, same `value * factor` — which is why currency is a category here and
+    // not a fourth mode alongside DEC/HEX/CON.
+    id: 'currency',
+    label: 'Currency',
+    base: CURRENCY_BASE,
+    live: true,
+    units: CURRENCY_CODES.map((code) => ({
+      id: code,
+      label: code,
+      // null, not 1: an unpriced currency must read as unavailable rather than
+      // silently convert at parity.
+      factor: code === CURRENCY_BASE ? 1 : null,
+    })),
+  },
 ];
+
+/**
+ * Point the currency units at a fresh set of rates.
+ *
+ * Mutates the existing unit objects **in place**, and must keep doing so.
+ * `ui.js` holds the selected units as object references and `convert` compares
+ * them by identity, so rebuilding the array on every refresh would strand the
+ * user's live selection on orphans — the pickers would still read USD → JPY
+ * while the conversion silently used the old, detached objects.
+ */
+export function applyRates(snapshot) {
+  const category = findCategory('currency');
+  if (!snapshot || !category) return false;
+  for (const unit of category.units) {
+    const factor = snapshot.factors[unit.id];
+    unit.factor = typeof factor === 'number' && Number.isFinite(factor) && factor > 0
+      ? factor
+      : null;
+  }
+  return true;
+}
 
 /** The category CON opens on. Length is the one everybody reaches for first. */
 export const DEFAULT_CATEGORY = 'length';
@@ -223,6 +267,7 @@ const DEFAULT_PAIR = {
   time: ['h', 'min'],
   pressure: ['bar', 'psi'],
   energy: ['kJ', 'kcal'],
+  currency: ['ZAR', 'USD'],
 };
 
 export function defaultPair(category) {

@@ -474,6 +474,84 @@ untagged; the converted value is never stored. `history.js` needed no changes.
 
 **Not persisted**, matching the base.
 
+### Stage 9 — Live currency (CUR) · done
+
+An eleventh CON category rather than a fourth mode: same pickers, same
+converted line, same `value * factor` arithmetic. `CUR` would have duplicated
+all of that for a control that already carries three options, to hold a rate
+table instead of a static one.
+
+**No API key, therefore no near-realtime rate.** This repo is public and has no
+server, so a key committed to it is world-readable and gets scraped on sight.
+Every provider with a dealable, tick-level rate (OANDA, XE, exchangerate.host)
+requires one. The only workable source without a key is **Frankfurter**
+(`api.frankfurter.dev`) — ECB-derived daily reference rates, no key, no quota,
+`Access-Control-Allow-Origin: *`, verified live. The daily-rate constraint is
+structural, not a shortcut taken to save time, and the UI captions the rate date
+for exactly that reason: a number with no provenance implies a freshness this
+architecture cannot deliver.
+
+`open.er-api.com` was the runner-up and was rejected: it obliges a visible
+attribution link and rate-limits to roughly one request an hour, against
+Frankfurter's none.
+
+**Forward cover was investigated and dropped.** SARB's `SarbWebApi`
+(`custom.resbank.co.za/SarbWebApi/MCM/Contributions/VALRATES`) is live and
+CORS-open but returns bond valuation yields only — checked directly, zero FX
+content. Every source that shows a USD/ZAR forward curve (Investing.com,
+FXEmpire, Barchart) renders it in a browser with no API behind it. ZAR forwards
+are OTC bank quotes, a paid Refinitiv/Bloomberg product. A covered-interest-
+parity figure computed from hand-typed rates would be arithmetic wearing a
+quote's clothes, and was rejected on that basis rather than for lack of time.
+
+**Factors mutate the existing unit objects in place.** `ui.js` holds the
+selected units as object references, and `convert`'s `from === to`
+short-circuit is an identity comparison — rebuilding the currency category on
+every refresh would strand a live USD → JPY selection on orphaned objects the
+moment new rates arrived. `applyRates` in `src/units.js` writes each `factor`
+onto the unit that already exists.
+
+**Two clocks, not one.** A snapshot carries `date` (the feed's own publication
+date) and `fetchedAt` (when *we* last reached it). The ECB does not publish at
+weekends, so a Friday rate read on a Sunday is correct, not stale — keying
+staleness off `date` would turn the app red every weekend and teach the user to
+ignore the warning. Staleness is `now - fetchedAt >= 24h`, tested at the
+boundary and pinned against the weekend case explicitly.
+
+**Refresh is gated to once a calendar day, on open, not on category entry.** A
+fixed 8am refresh was requested and is not buildable: a PWA has no background
+scheduler, so nothing wakes it at a set hour unless it is already running.
+"First open of the day" is the honest version of the same intent. Cost is
+measured, not assumed: the filtered request is **237 bytes gzipped**, so daily
+refresh is roughly 7 KB a month.
+
+**A missing rate returns `null`, not `NaN`.** `convert` in `units.js` guards on
+a `null` factor before the arithmetic, because "no rates yet" and "the sum was
+nonsense" need different captions and `NaN` cannot distinguish them.
+`renderConverted` shows `Rates unavailable` on `null` rather than blanking the
+line — a blank line in a currency context reads as zero, which is a wrong
+answer rather than a missing one.
+
+**The rate note lives on the display card, in `--danger` plus the word `Stale`
+when old.** Not in the menu — a staleness warning behind a menu tap is a warning
+that effectively does not exist. Colour is not the sole signal, because it fails
+a colour-blind user and anyone in bright sunlight; the word carries the meaning,
+the colour makes it findable. `--danger` was used rather than a literal `red`
+specifically because it is dark-mode aware (`#a32d2d` light, `#ff9a9a` dark) —
+verified by reading `getComputedStyle` in both colour schemes.
+
+**The feed is untrusted input**, treated exactly like `history.js` already
+treats stored tape entries: every code checked against a known list, every rate
+a finite positive number, every date pattern-matched, and a malformed payload
+rejected *whole* rather than partially applied — a half-updated rate set would
+leave some currencies live and others silently stale with nothing on screen to
+tell them apart.
+
+**`connect-src` names exactly one external host.** `https://api.frankfurter.dev`
+was added to the CSP rather than widening to `https:`; this is the only place
+the app is allowed to reach off-origin, and it is a value worth keeping narrow
+on purpose.
+
 ---
 
 ## 6. Repo and deployment
@@ -523,12 +601,15 @@ was checked, and why each holds:
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self';
-connect-src 'self'; manifest-src 'self'; worker-src 'self';
+connect-src 'self' https://api.frankfurter.dev; manifest-src 'self'; worker-src 'self';
 base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
 ```
 
-There is no third-party code and no injection sink, so this guards against a
-future mistake rather than a present risk. `'unsafe-inline'` is deliberately
+`connect-src` carries one external host, added in stage 9 for the exchange-rate
+feed — the only place this app is allowed to leave its own origin. There is no
+third-party *code*, and no injection sink, so beyond that one entry this guards
+against a future mistake rather than a present risk. `'unsafe-inline'` is
+deliberately
 absent from both `script-src` and `style-src` — the app has no inline script and
 no inline `style` attribute, and it must stay that way. Adding either will break
 silently in the browser while the tests still pass, so re-check the console after

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self' https://api.frankfurter.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#0d1f3c" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#050d1a" media="(prefers-color-scheme: dark)">
@@ -40,6 +40,11 @@
   <!-- The converted value gets its own line rather than borrowing #hint, which
        is the shared fault caption and is wiped 1.4s after any flash message. -->
   <div id="converted" class="converted" aria-live="off" title="Long press to copy" hidden></div>
+  <!-- Currency only. These are ECB daily reference rates rather than dealing
+       rates, so the date is part of the answer. Announced politely because it
+       changes without the user acting; #converted stays aria-live="off" so
+       there is still only one announcement per conversion. -->
+  <div id="rate-note" class="rate-note" aria-live="polite" hidden></div>
   <div id="hint" class="hint" role="status" aria-live="polite"></div>
 
   <div class="utility">
@@ -77,6 +82,9 @@
     <div class="cat-block" hidden>
     <p class="menu-label" id="cat-label">Convert</p>
     <div class="cat-row" role="group" aria-labelledby="cat-label"></div>
+    <!-- The daily gate covers the normal case; this is for the one it cannot,
+         where the caption went red offline and you have just reconnected. -->
+    <button type="button" role="menuitem" data-act="rates">Refresh rates</button>
     </div>
   </div>
 </main>
