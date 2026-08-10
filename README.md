@@ -137,8 +137,9 @@ timesheet or an invoice wants, and the one thing `H:MM:SS` is bad at. The
 decimal-places setting governs that line.
 
 The keypad is its own layout rather than the decimal one with substitutions:
-`h m s` share the top row with `/`, the operators run down the fourth column, and
-the bottom row is `0 00 ( ) =`. **There is no `AC` key in `TIM`** — long-press
+`0 00 ( )` share the top row with `/`, the operators run down the fourth column,
+and `h m s` sit along the bottom, nearest the thumb — every duration ends in one
+of them. **There is no `AC` key in `TIM`** — long-press
 `⌫` to clear, or `Esc` on a hardware keyboard. Dropping it is what makes the grid
 come out at exactly twenty keys with nothing double-width and no gap.
 

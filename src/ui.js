@@ -537,6 +537,10 @@ function applyRadix(value, { rewrite = true } = {}) {
 
   const pad = PAD_CLASS[to] ?? 'dec';
   for (const el of keypads) el.hidden = !el.classList.contains(pad);
+  // The utility row sits inside the display card, above every keypad, so CSS
+  // cannot see which one is showing. Backspace needs it to match the operator
+  // column's width, which differs between the four- and five-column grids.
+  document.body.dataset.pad = pad;
   // Hidden in hex, where results are exact integers. Kept in TIM, where results
   // are whole seconds but the decimal-hours line underneath is what it governs.
   dpBlock.hidden = to === HEX;

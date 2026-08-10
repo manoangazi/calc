@@ -155,10 +155,11 @@
 </div>
 
 <!-- TIM gives up two keys the mode cannot use — ^ (a duration raised to a power is
-     not a quantity) and . (redundant once s exists) — which frees the top row for
-     h, m and s in descending order, the order they are typed in. That in turn
-     lets the four operators stack in one column in / × − + order, which the
-     decimal pad cannot do because ^ holds the top slot there.
+     not a quantity) and . (redundant once s exists) — which frees a whole row and
+     lets the four operators stack in one column in / × − + order, something the
+     decimal pad cannot do because ^ holds a top slot there. h, m and s take the
+     bottom row in descending order, the order they are typed in, where they are
+     nearest the thumb: every duration ends in one of them.
 
      There is no AC key. Backspace already long-presses to clear, and the freed
      slot is what makes the grid come out at exactly 20 keys with no double-width
@@ -168,9 +169,9 @@
      The colon spelling — 1:20.45 — stays legal input for a hardware keyboard and
      for history recall; it is simply not what the keys emit. -->
 <div class="keypad tim" role="group" aria-label="Time keypad" hidden>
-  <button type="button" class="key unit" data-cmd="unit:h" aria-label="Hours">h</button>
-  <button type="button" class="key unit" data-cmd="unit:m" aria-label="Minutes">m</button>
-  <button type="button" class="key unit" data-cmd="unit:s" aria-label="Seconds">s</button>
+  <button type="button" class="key" data-cmd="digit:0">0</button>
+  <button type="button" class="key" data-cmd="zeros">00</button>
+  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
 
   <button type="button" class="key" data-cmd="digit:7">7</button>
@@ -188,9 +189,9 @@
   <button type="button" class="key" data-cmd="digit:3">3</button>
   <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
 
-  <button type="button" class="key" data-cmd="digit:0">0</button>
-  <button type="button" class="key" data-cmd="zeros">00</button>
-  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
+  <button type="button" class="key unit" data-cmd="unit:h" aria-label="Hours">h</button>
+  <button type="button" class="key unit" data-cmd="unit:m" aria-label="Minutes">m</button>
+  <button type="button" class="key unit" data-cmd="unit:s" aria-label="Seconds">s</button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 

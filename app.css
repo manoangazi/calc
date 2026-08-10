@@ -176,7 +176,10 @@ body {
   flex-direction: column;
   justify-content: space-between;
   margin: var(--gap) var(--gap) 0;
-  padding: 16px 16px 6px;
+  /* Held in a variable because .util.back cancels it with a negative margin to
+     reach the keypad's column grid; the two must not drift apart. */
+  --card-pad: 16px;
+  padding: 16px var(--card-pad) 6px;
   background: var(--surface);
   border-radius: 6px;
 }
@@ -287,13 +290,22 @@ body {
 .util[data-act="menu"] { font-weight: 700; font-size: 21px; }
 .util:disabled { opacity: 0.4; }
 .util:active { transform: scale(0.94); }
+/* Sized and placed to sit directly above the operator column, so the two read as
+   one column rather than two near-misses. The width is the keypad's own grid
+   arithmetic — its padding either side plus the three gaps between four cells —
+   and the negative margin cancels the card's padding so the right edges meet.
+   body has overflow:hidden, so 100vw carries no scrollbar. */
 .util.back {
   background: var(--accent-fill);
   color: var(--on-accent);
-  min-width: 90px;
+  min-width: 0;
+  width: calc((100vw - 5 * var(--gap)) / 4);
+  margin-right: calc(-1 * var(--card-pad));
   min-height: 45px;
   font-size: 21px;
 }
+/* Hex is a five-column grid, so its operator column is narrower. */
+body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
 .util.back:active { background: var(--accent-fill-active); }
 
 /* The unit pickers sit in the dead space this row already had between its two
@@ -509,7 +521,8 @@ body {
   .display {
     flex: 0 0 auto;
     min-height: 0;
-    padding: 8px 14px 2px;
+    --card-pad: 14px;
+    padding: 8px var(--card-pad) 2px;
   }
   .expression { font-size: 30px; }
   .result { font-size: 21px; margin-top: 4px; min-height: 25px; }

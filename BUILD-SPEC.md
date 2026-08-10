@@ -157,6 +157,21 @@ own tint rather than sharing the accent with `( )` and `^` — it throws work aw
 and should not look like a sibling of the keys that build an expression. Measured
 6.1:1 in light and 7.1:1 in dark.
 
+**Backspace is aligned to the operator column.** It sits in the utility row inside
+the display card, one row above the keypad, so by default it landed 16px inside
+the operator column's right edge at a width that matched nothing — two near-misses
+reading as a mistake. It is now given the keypad's own column arithmetic,
+`calc((100vw - 5 * var(--gap)) / 4)`, and a negative right margin cancelling the
+card's padding, so the two agree to the pixel. Two things this depends on: `body`
+carries `overflow: hidden`, so `100vw` never includes a scrollbar; and the card's
+horizontal padding lives in `--card-pad` (16px, 14px in landscape) precisely
+because the negative margin has to track it.
+
+Hex is a five-column grid, so its operator column is narrower. CSS cannot see
+which keypad is showing — the utility row is inside the card, above all of them —
+so `applyRadix` writes `document.body.dataset.pad` and one rule keys off it. That
+is the only reason the mode is reflected in the DOM at all.
+
 **Digit grouping while typing.** Integer parts are grouped with a thin space
 (`5 566`), never a comma — a comma would collide with the decimal separator on a
 locale that uses it. Grouping is applied at render time only; the buffer holds
@@ -634,17 +649,22 @@ switch — but the decimal grid is shaped around `^` holding a top slot, and TIM
 no use for `^`. Freeing it, and dropping `AC`, leaves:
 
 ```
-h   m   s   /
+0   00  ( ) /
 7   8   9   ×
 4   5   6   −
 1   2   3   +
-0   00  ( ) =
+h   m   s   =
 ```
 
 Which is exactly 20 keys in 20 cells: no double-width key, no gap, the three unit
 markers together in the descending order they are typed in, and all four operators
 in one column in `/ × − +` order — none of which the decimal pad can do. `00`
 earns its slot back here because `2h00m` and `1h05m` are common shapes.
+
+The unit row sits at the bottom, beside `=`, rather than at the top: every
+duration literal ends in one of `h`/`m`/`s`, so they are reached more often than
+any single digit and belong nearest the thumb. Their sizing rules key off
+`data-cmd` rather than grid position, so moving the row cost no CSS.
 
 Clear survives as the long-press on `⌫` (`data-long="clear"`), which every pad
 already carried, plus `Esc` on a hardware keyboard. The cost is real and worth
