@@ -200,6 +200,15 @@ body {
   scrollbar-width: none;
 }
 .expression::-webkit-scrollbar { display: none; }
+/* One number, one line. `break-all` on the parent puts a break opportunity
+   between every pair of characters; this takes them back inside a number, so the
+   only surviving opportunities are at the operators and parens between them.
+   `.breakable` is the escape hatch fitExpression applies when a single number is
+   too wide for the card even at the smallest step — better a split number than
+   one running off the edge. */
+.expression .run { white-space: nowrap; }
+.expression.breakable .run { white-space: normal; }
+
 .expression .op { color: var(--accent); padding: 0 1px; }
 .expression .paren { color: var(--accent); }
 .expression .placeholder { color: var(--muted); }

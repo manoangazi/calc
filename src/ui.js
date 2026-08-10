@@ -77,14 +77,34 @@ function renderExpression() {
     return c;
   };
 
+  /*
+   * Each number goes in its own wrapper so a line break cannot land inside one.
+   * Splitting `10000000000` across two lines reads as two different numbers —
+   * the eye has no way to tell a wrap from a `+`. Operators and parens stay
+   * outside the wrappers, so those are where the line is allowed to break.
+   *
+   * This is nesting only. The parts, their text and their `data-i` indices are
+   * exactly as before, so the buffer, the caret arithmetic and tap-to-place are
+   * untouched — `querySelectorAll('[data-i]')` still finds every character.
+   */
   const showCaret = !state.committed;
+  let run = null;
   for (const part of formatExpression(state.buf)) {
-    if (showCaret && part.i === state.caret) exprEl.append(caret());
+    const inNumber = part.kind === 'num' || part.kind === 'group';
+    if (inNumber && !run) {
+      run = document.createElement('span');
+      run.className = 'run';
+      exprEl.append(run);
+    } else if (!inNumber) {
+      run = null;
+    }
+    const target = run ?? exprEl;
+    if (showCaret && part.i === state.caret) target.append(caret());
     const span = document.createElement('span');
     span.className = part.kind;
     span.textContent = part.text;
     if (part.i !== undefined) span.dataset.i = part.i;
-    exprEl.append(span);
+    target.append(span);
   }
   if (showCaret && state.caret >= state.buf.length) exprEl.append(caret());
 }
@@ -163,14 +183,28 @@ function expressionRoom() {
  */
 function fitExpression() {
   exprEl.style.fontSize = '';
+  exprEl.classList.remove('breakable');
   if (state.committed) return;
   const base = parseFloat(getComputedStyle(exprEl).fontSize);
   const sizes = [base, base * 0.85, base * 0.74, Math.max(MIN_EXPR_PX, base * 0.63)];
   const room = expressionRoom();
-  for (const size of sizes) {
-    exprEl.style.fontSize = `${size}px`;
-    if (exprEl.scrollHeight <= Math.min(size * 1.35 * 3 + 2, room)) break;
+
+  const step = () => {
+    for (const size of sizes) {
+      exprEl.style.fontSize = `${size}px`;
+      if (exprEl.scrollHeight <= Math.min(size * 1.35 * 3 + 2, room)) break;
+    }
+  };
+  step();
+
+  // Numbers are unbreakable, so one longer than the card would run off the edge
+  // rather than wrap. Let that number break after all — a split number is bad,
+  // a number with its tail off-screen is worse — and re-fit at the new shape.
+  if (exprEl.scrollWidth > exprEl.clientWidth + 1) {
+    exprEl.classList.add('breakable');
+    step();
   }
+
   // Keep the caret end in view when even the smallest size had to scroll.
   exprEl.scrollTop = exprEl.scrollHeight;
 }

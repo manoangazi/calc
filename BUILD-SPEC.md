@@ -164,6 +164,22 @@ away. Before, the hold was unlabelled everywhere and TIM had no clear key at all
 `aria-label` reads "Backspace, hold to clear"; the delegated handlers use
 `closest()`, so the added `<span>` child cannot swallow a tap.
 
+**A number never breaks across lines.** `10000000000+5000000` wrapping mid-number
+put `10000000000+50` on one line and `00000` on the next, which reads as two
+different numbers — nothing on screen distinguishes a wrap from the start of a new
+term. Each run of number characters now renders inside a `.run` wrapper carrying
+`white-space: nowrap`, so the `break-all` on the parent still offers a break at
+every operator and paren but none inside a literal. It is nesting only: the parts,
+their text and their `data-i` indices are unchanged, so the buffer, the caret
+arithmetic and `indexAtPoint`'s tap-to-place are untouched — and the calculation
+cannot be affected, because nothing here is read back.
+
+One number wider than the card would then run off the edge instead of wrapping,
+so `fitExpression` measures `scrollWidth` after sizing and, if it overflows, adds
+`.breakable` to release the rule and re-fits. A split number is bad; a number with
+its tail off-screen is worse. This applies in every mode — a TIM literal like
+`11h59m59s` is as unreadable split as a decimal one.
+
 **The expression fits by measurement, not by a line count.** `fitExpression`
 steps the font down until the expression fits — originally three lines, hardcoded.
 That constant was set when the card had fewer rows: TIM adds the decimal-hours
