@@ -3,6 +3,7 @@ import { formatExpression, formatResult, config, setDecimals, setRadix } from '.
 import { ERRORS } from './errors.js';
 import { addEntry, loadHistory, saveHistory, fromStored } from './history.js';
 import { convertBuffer, DEC, HEX } from './radix.js';
+import { CATEGORIES, DEFAULT_CATEGORY, convert, defaultPair, findCategory, findUnit } from './units.js';
 
 const card = document.querySelector('.display');
 const exprEl = document.getElementById('expression');
@@ -14,6 +15,12 @@ const menuBtn = document.querySelector('[data-act="menu"]');
 const menu = document.querySelector('.menu');
 const dpBlock = document.querySelector('.dp-block');
 const radixSel = document.getElementById('radix');
+const convertedEl = document.getElementById('converted');
+const convRow = document.querySelector('.conv');
+const convFromSel = document.getElementById('conv-from');
+const convToSel = document.getElementById('conv-to');
+const catBlock = document.querySelector('.cat-block');
+const catRow = document.querySelector('.cat-row');
 // One per keypad: only the visible one is on screen, but both are kept in step
 // so switching mode never reveals a stale bracket count.
 const parenDepthEls = [...document.querySelectorAll('[data-cmd="paren"] .depth')];
@@ -31,6 +38,12 @@ let lastGood = '';
 let history = [];
 let flashMsg = '';
 let flashTimer = null;
+
+/* 'dec' | 'hex' | 'con'. CON is *not* a radix — it is decimal arithmetic with a
+   conversion applied to the result, so config.radix stays DEC throughout and the
+   engine modules need to know nothing about it. */
+let mode = 'dec';
+let conversion = null;
 
 /* ---- rendering ---------------------------------------------------------- */
 
@@ -69,16 +82,21 @@ function render() {
 
   const fault = state.error ? ERRORS[state.error] : null;
   let text;
+  // Kept alongside `text` so the converted line can reuse the number render()
+  // already resolved rather than evaluating the buffer a second time.
+  let value = null;
   if (fault) {
     text = state.error === 'overflow' ? formatResult(state.result) : fault.display;
   } else if (state.committed) {
+    value = state.result;
     text = formatResult(state.result);
   } else {
-    const value = preview(state.buf);
+    value = preview(state.buf);
     if (value !== null) lastGood = formatResult(value);
     text = state.buf === '' ? '' : lastGood;
   }
   resultEl.textContent = text;
+  renderConverted(state.buf === '' ? null : value);
 
   // Errors are a quiet caption, never an alert. A flash message borrows the
   // same line rather than introducing a toast.
@@ -107,6 +125,22 @@ function fitExpression() {
     exprEl.style.fontSize = `${size}px`;
     if (exprEl.scrollHeight <= size * 1.35 * 3 + 2) break;
   }
+}
+
+/**
+ * The converted value, under the result. Blanked rather than dashed whenever
+ * there is nothing honest to show: outside CON, on an empty or faulted buffer,
+ * and on a non-finite result such as 1/0 — the result line already says what
+ * went wrong, and a second complaint underneath just reads as noise.
+ */
+function renderConverted(value) {
+  if (mode !== 'con' || !conversion || value === null
+      || typeof value !== 'number' || !Number.isFinite(value)) {
+    convertedEl.textContent = '';
+    return;
+  }
+  const out = convert(value, conversion.from, conversion.to);
+  convertedEl.textContent = `${formatResult(out)} ${conversion.to.label}`;
 }
 
 /* ---- input -------------------------------------------------------------- */
@@ -259,16 +293,18 @@ historyPanel.addEventListener('click', (e) => {
   // Recalling switches the mode to the entry's own base rather than
   // reinterpreting its digits in whichever base happens to be selected — the
   // reducer would reject "FF" in decimal and silently drop the recall.
+  // Unconditional: in CON the radix is already DEC, so a `radix !== config.radix`
+  // guard would be false and leave the app in CON with a stale unit pair applied
+  // to a recalled arithmetic entry.
   const radix = Number(entry.dataset.radix) === HEX ? HEX : DEC;
-  if (radix !== config.radix) applyRadix(radix, { convert: false });
+  applyMode(radix === HEX ? 'hex' : 'dec', { rewrite: false });
   run(`load:${entry.dataset.src}`);
   openHistory(false);
 });
 
 /* ---- copy ---------------------------------------------------------------- */
 
-async function copyResult() {
-  const text = resultEl.textContent;
+async function copyText(text) {
   if (!text) return;
   try {
     await navigator.clipboard.writeText(text);
@@ -283,6 +319,10 @@ async function copyResult() {
  * honours navigator.clipboard inside a user-gesture task, and a setTimeout
  * callback is no longer one. The timer only arms the action and buzzes.
  */
+/* In CON the number the user is looking at is the converted one, so the line
+   they press is the line they get. */
+const copyResult = () => copyText(resultEl.textContent);
+
 function bindHoldToCopy(el) {
   let timer = null;
   let armed = false;
@@ -300,7 +340,7 @@ function bindHoldToCopy(el) {
   const release = (commit) => {
     clearTimeout(timer);
     el.classList.remove('armed');
-    if (commit && armed) copyResult();
+    if (commit && armed) copyText(el.textContent);
     armed = false;
   };
 
@@ -310,6 +350,7 @@ function bindHoldToCopy(el) {
 }
 
 bindHoldToCopy(resultEl);
+bindHoldToCopy(convertedEl);
 
 /* ---- utility controls and menu ------------------------------------------ */
 
@@ -350,22 +391,29 @@ function applyDecimals(value) {
  * result, so a half-typed calculation survives the switch — and so typing a
  * number and flipping the control is all a base conversion takes.
  *
- * `convert` is off when the mode is following something that already carries its
+ * `rewrite` is off when the mode is following something that already carries its
  * own digits, such as recalling a hex entry from the tape.
+ *
+ * Returns whether the switch happened. It can genuinely be refused, and the
+ * caller has to know: `applyMode` routes HEX → CON through here, and going ahead
+ * after a refusal would leave CON holding a hex buffer and a BigInt result.
+ *
+ * This does *not* touch the select. `applyMode` is the single owner of
+ * `radixSel.value`, so that a plain radix change cannot knock the control out of
+ * CON behind its back.
  */
-function applyRadix(value, { convert = true } = {}) {
+function applyRadix(value, { rewrite = true } = {}) {
   const from = config.radix;
   const to = setRadix(value);
 
-  if (convert && from !== to) {
+  if (rewrite && from !== to) {
     const { buf, lossy, tooLong } = convertBuffer(state.buf, from, to);
     if (tooLong) {
       // Hex is denser than decimal, so a full buffer can fail to fit. Refusing
       // the switch keeps the expression; going ahead would truncate it.
       setRadix(from);
-      radixSel.value = String(from);
       flash('Too long to convert');
-      return;
+      return false;
     }
     // `committed` cannot survive the switch: the stored result belongs to the
     // old base. Dropping it re-evaluates the converted buffer as a live preview.
@@ -373,14 +421,97 @@ function applyRadix(value, { convert = true } = {}) {
     if (lossy) flash('Fractions dropped');
   }
 
-  radixSel.value = String(to);
   for (const pad of keypads) pad.hidden = pad.classList.contains('hex') !== (to === HEX);
   dpBlock.hidden = to === HEX;
+  return true;
+}
+
+/**
+ * The one place that decides what mode the app is in. Everything mode-dependent
+ * hangs off here: the select's own value, which keypad is on screen, and whether
+ * the decimal-places and conversion controls exist.
+ *
+ * CON runs on decimal arithmetic and the decimal keypad, so entering it from HEX
+ * means a real base conversion first — which `applyRadix` can refuse.
+ */
+function applyMode(next, { rewrite = true } = {}) {
+  const radix = next === 'hex' ? HEX : DEC;
+  if (!applyRadix(radix, { rewrite: rewrite && mode !== next })) {
+    // Refused: stay put, and put the control back where it was.
+    radixSel.value = mode === 'con' ? 'con' : String(config.radix);
+    render();
+    return;
+  }
+
+  mode = next;
+  radixSel.value = next === 'con' ? 'con' : String(radix);
+
+  if (next === 'con') {
+    if (!conversion) selectCategory(DEFAULT_CATEGORY);
+  } else {
+    // Cleared, not just hidden — a stale conversion must not flash back into
+    // view the next time CON is selected.
+    convertedEl.textContent = '';
+  }
+  convRow.hidden = next !== 'con';
+  convertedEl.hidden = next !== 'con';
+  catBlock.hidden = next !== 'con';
+
   renderTape();
   render();
 }
 
-radixSel.addEventListener('change', () => applyRadix(radixSel.value));
+/* Branch on the string. `Number('con')` is NaN, which setRadix would quietly
+   collapse to DEC — right answer, wrong reason, and it would break the moment a
+   fourth option appeared. */
+radixSel.addEventListener('change', () => {
+  const v = radixSel.value;
+  applyMode(v === 'con' ? 'con' : v === String(HEX) ? 'hex' : 'dec');
+});
+
+/* ---- unit conversion ----------------------------------------------------- */
+
+function fillUnitSelect(sel, category, selected) {
+  sel.textContent = '';
+  for (const unit of category.units) {
+    const opt = document.createElement('option');
+    opt.value = unit.id;
+    opt.textContent = unit.label;
+    if (unit.id === selected.id) opt.selected = true;
+    sel.append(opt);
+  }
+}
+
+function selectCategory(id) {
+  const category = findCategory(id) ?? findCategory(DEFAULT_CATEGORY);
+  const { from, to } = defaultPair(category);
+  conversion = { category, from, to };
+  fillUnitSelect(convFromSel, category, from);
+  fillUnitSelect(convToSel, category, to);
+  for (const btn of catRow.querySelectorAll('[data-act="cat"]')) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.cat === category.id));
+  }
+}
+
+/* Built from the table rather than the markup, so adding a category is a
+   one-line edit in units.js. */
+for (const category of CATEGORIES) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.dataset.act = 'cat';
+  btn.dataset.cat = category.id;
+  btn.setAttribute('aria-pressed', 'false');
+  btn.textContent = category.label;
+  catRow.append(btn);
+}
+
+for (const [sel, side] of [[convFromSel, 'from'], [convToSel, 'to']]) {
+  sel.addEventListener('change', () => {
+    if (!conversion) return;
+    conversion[side] = findUnit(conversion.category, sel.value) ?? conversion[side];
+    render();
+  });
+}
 
 menu.addEventListener('click', (e) => {
   const item = e.target.closest('[data-act]');
@@ -391,6 +522,12 @@ menu.addEventListener('click', (e) => {
   } else if (item.dataset.act === 'dp') {
     // Menu stays open — picking places is something you compare, not commit to.
     applyDecimals(item.dataset.dp);
+  } else if (item.dataset.act === 'cat') {
+    // Closes, unlike decimal places: picking a category is a commitment, and the
+    // units it chose are behind the menu.
+    selectCategory(item.dataset.cat);
+    closeMenu();
+    render();
   }
 });
 
@@ -449,6 +586,7 @@ try {
 } catch { /* private mode */ }
 applyDecimals(storedDecimals);
 
-/* The base is deliberately not persisted — the app always opens in decimal, so
-   a keypad full of letters is never the first thing you meet. */
-applyRadix(DEC, { convert: false });
+/* Neither the mode nor the unit pair is persisted — the app always opens in
+   decimal, so a keypad full of letters is never the first thing you meet. */
+selectCategory(DEFAULT_CATEGORY);
+applyMode('dec', { rewrite: false });

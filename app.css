@@ -228,6 +228,18 @@ body {
 }
 .display.error .result { color: var(--danger); }
 
+/* The converted value in CON. Accent-coloured so it reads as the answer rather
+   than as a second, competing result. */
+.converted {
+  min-height: 24px;
+  margin-top: 2px;
+  font-size: 19px;
+  text-align: right;
+  color: var(--accent);
+}
+.converted[hidden] { display: none; }
+.converted.armed { opacity: 0.55; }
+
 .hint {
   min-height: 19px;
   margin-top: 4px;
@@ -269,6 +281,34 @@ body {
   font-size: 21px;
 }
 .util.back:active { background: var(--accent-fill-active); }
+
+/* The unit pickers sit in the dead space this row already had between its two
+   buttons, so CON costs the display card no extra height. Native selects again,
+   for the iOS picker; these are on --surface rather than the bar, so they take
+   the accent colour instead of white.
+   The explicit display:none is load-bearing — display:flex beats [hidden]. */
+.conv {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.conv[hidden] { display: none; }
+.conv select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: var(--bg);
+  color: var(--accent);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 7px 10px;
+  border-radius: 6px;
+  max-width: 96px;
+  text-overflow: ellipsis;
+}
+.conv-arrow { color: var(--muted); font-size: 15px; }
 
 .menu {
   position: absolute;
@@ -333,6 +373,31 @@ body {
   color: var(--on-accent);
 }
 .dp-row button:first-child { flex: 1.5 1 0; }
+
+/* Ten categories, so a grid rather than the decimal-places single row. Reuses
+   the .dp-row button styling via the shared selector below. */
+.cat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 0 8px 6px;
+}
+.cat-row button {
+  appearance: none;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 2px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  transition: background 80ms ease;
+}
+.cat-row button[aria-pressed="true"] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
 
 .keypad {
   flex: 0 0 auto;
@@ -420,8 +485,10 @@ body {
   .result { font-size: 21px; margin-top: 4px; min-height: 25px; }
   .display.committed .expression { font-size: 22px !important; }
   .display.committed .result { font-size: 30px; }
+  .converted { font-size: 15px; min-height: 18px; margin-top: 0; }
   .hint { min-height: 0; margin-top: 0; font-size: 13px; }
   .utility { padding: 4px 0 0; }
+  .conv select { font-size: 13px; padding: 4px 6px; }
   /* The card is only ~100px tall here, so a menu anchored to its bottom edge runs
      off the top of the screen. Grow it downward from the card instead — overlaying
      the keypad is fine for a popover; leaving the viewport is not. */
@@ -450,8 +517,11 @@ body {
   .result { font-size: 18px; min-height: 21px; }
   .display.committed .expression { font-size: 18px !important; }
   .display.committed .result { font-size: 25px; }
+  .converted { font-size: 13px; min-height: 15px; }
   .util { min-height: 26px; font-size: 17px; }
   .util.back { min-height: 28px; font-size: 16px; }
+  .conv select { font-size: 12px; padding: 3px 5px; }
+  .conv-arrow { font-size: 12px; }
   /* Key rows are only ~24px here, so line boxes must stay under that or the
      glyphs clip. Ink parity with the digits is not achievable at this height —
      fitting wins. */

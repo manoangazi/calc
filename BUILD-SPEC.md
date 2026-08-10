@@ -414,6 +414,66 @@ written before hex existed have no `radix` and read as decimal.
 **Not persisted.** The app always opens in decimal, so a keypad full of letters
 is never the first thing you meet.
 
+### Stage 8 — Unit conversion (CON) · done
+
+A third option on the same control, converting the result between everyday
+units. Ten categories: length, mass, temperature, volume, area, speed, data,
+time, pressure, energy.
+
+**No library.** There is no zero-dependency option — `Intl.NumberFormat` formats
+a unit but does not convert it, and `convert-units`, `js-quantities` and `mathjs`
+are all npm packages. Adding one means adding a bundler to a project whose
+defining property is not having one, to import what is fundamentally a table of
+factors. So `src/units.js` is that table, hand-written and dependency-free.
+
+**CON is not a radix.** This is the load-bearing decision. `config.radix` looks
+like a mode flag but is really a *table key*, used in `tokenizer.NUM_CHAR`,
+`format.NUM_CHARS`/`GROUP_SIZE`, four regex maps in `model.js` and
+`history.LEGAL_SRC` — and the `model.js` maps have no `?? DEC` fallback, so an
+unrecognised value throws rather than degrading. A third radix value would mean
+adding CON to every one of those tables, plus deciding what a "CON entry" means
+in the history tape.
+
+It does not need to mean anything. CON's arithmetic *is* decimal arithmetic; the
+conversion is a post-step on the evaluated result. So `config.radix` stays `DEC`
+throughout, the mode lives in `ui.js` alone, and `tokenizer.js`, `parser.js`,
+`eval.js`, `model.js`, `format.js`, `radix.js` and `history.js` are untouched by
+this stage. It also means `12*3` in CON converts 36, for free.
+
+**One owner for the mode.** `applyRadix` used to write `radixSel.value` itself,
+which was fine with two options and wrong with three: boot and history recall
+both call it with `DEC`, so either would have silently knocked the control out of
+CON. It now only does the radix work and returns whether it succeeded; a new
+`applyMode` is the sole writer of the select. The return value is not cosmetic —
+entering CON from HEX is a real base conversion that `convertBuffer` can refuse
+when the decimal form exceeds `MAX_LENGTH`, and proceeding after a refusal would
+leave CON holding a hex buffer and a `BigInt` result.
+
+**Offsets, not just factors.** Every unit is `value * factor + offset` against
+its category's base. The offset exists for temperature: °F is factor `5/9`,
+offset `-160/9`, from `C = F·5/9 − 160/9`. Because the category is affine, there
+is no `factor[from] / factor[to]` shortcut anywhere — a conversion always goes
+through the base. `convert` does short-circuit `from === to`, since `x*f/f` is
+not `x` for most `f` and shifting the last digit of a visibly unchanged number
+reads as a bug.
+
+**Both data scales.** `kB/MB/GB/TB` at 1000ⁿ and `KiB/MiB/GiB/TiB` at 1024ⁿ.
+This app has a hex mode, so it gets used for "the disk says 500 GB" and "the
+allocator says 4 MiB" alike; one scale is wrong half the time and the user cannot
+tell which is in force. Labelling 1024² as "MB" was never an option.
+
+**Where the controls went.** The converted value gets its own line rather than
+borrowing `#hint`, which is the shared fault caption and is wiped 1.4 s after any
+flash message. The from/to pickers go in the utility row, which already had a
+button at each end and dead space between — so they cost the display card no
+height, and the landscape breakpoints do not lose a keypad row. Category lives in
+the `⋯` menu because it is picked once and the units are changed repeatedly.
+
+**The tape stays arithmetic.** `=` in CON records the plain decimal calculation,
+untagged; the converted value is never stored. `history.js` needed no changes.
+
+**Not persisted**, matching the base.
+
 ---
 
 ## 6. Repo and deployment

@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 const suites = [
   'test/engine.test.mjs',
   'test/hex.test.mjs',
+  'test/units.test.mjs',
   'test/assets.test.mjs',
   'test/fuzz.test.mjs',
 ];

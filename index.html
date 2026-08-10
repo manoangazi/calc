@@ -21,10 +21,11 @@
 
 <header class="appbar">
   <label class="radix">
-    <span class="sr-only">Number base</span>
+    <span class="sr-only">Mode</span>
     <select id="radix">
       <option value="10" selected>DEC</option>
       <option value="16">HEX</option>
+      <option value="con">CON</option>
     </select>
     <span class="chev" aria-hidden="true">&#9662;</span>
   </label>
@@ -36,10 +37,22 @@
 <main class="display">
   <div id="expression" class="expression"></div>
   <div id="result" class="result" role="status" aria-live="polite" title="Long press to copy"></div>
+  <!-- The converted value gets its own line rather than borrowing #hint, which
+       is the shared fault caption and is wiped 1.4s after any flash message. -->
+  <div id="converted" class="converted" aria-live="off" title="Long press to copy" hidden></div>
   <div id="hint" class="hint" role="status" aria-live="polite"></div>
 
   <div class="utility">
     <button type="button" class="util" data-act="menu" aria-haspopup="menu" aria-expanded="false" aria-label="More">&#8943;</button>
+    <!-- Only shown in CON. The row is otherwise two buttons and a gap, so the
+         pickers cost no height and landscape is unaffected. A <select> matches
+         neither [data-cmd] nor [data-long], so the delegated key handlers on
+         .utility ignore it. -->
+    <div class="conv" hidden>
+      <select id="conv-from" aria-label="Convert from"></select>
+      <span class="conv-arrow" aria-hidden="true">&#8646;</span>
+      <select id="conv-to" aria-label="Convert to"></select>
+    </div>
     <button type="button" class="util back" data-cmd="back" data-long="clear" aria-label="Backspace">&#9003;</button>
   </div>
 
@@ -57,6 +70,13 @@
       <button type="button" data-act="dp" data-dp="4" aria-pressed="false">4</button>
       <button type="button" data-act="dp" data-dp="5" aria-pressed="false">5</button>
     </div>
+    </div>
+
+    <!-- CON only. Category is a set-once choice, so it lives here rather than
+         taking a third picker's worth of room on the display card. -->
+    <div class="cat-block" hidden>
+    <p class="menu-label" id="cat-label">Convert</p>
+    <div class="cat-row" role="group" aria-labelledby="cat-label"></div>
     </div>
   </div>
 </main>

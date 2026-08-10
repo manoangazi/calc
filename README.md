@@ -45,6 +45,32 @@ keys away.
 
 The base is deliberately not persisted; the app always opens in decimal.
 
+## Unit conversion
+
+`CON` is the third option on the same control. It is **decimal arithmetic with a
+conversion applied to the result** — not a base — so the whole expression engine
+is unchanged and `12*3` converts 36. The converted value gets its own line under
+the result; the from/to pickers sit in the utility row, and the category is in
+the `⋯` menu, because you pick it once and then change units repeatedly.
+
+Ten categories: length, mass, temperature, volume, area, speed, data, time,
+pressure, energy. Worth knowing:
+
+- **Temperature is affine, not proportional.** °F and K carry an `offset` as well
+  as a factor, which is why [src/units.js](src/units.js) never divides one
+  factor by another and always routes through the category's base unit.
+- **Data carries both scales**, correctly named: `kB/MB/GB/TB` are 1000ⁿ and
+  `KiB/MiB/GiB/TiB` are 1024ⁿ. This app has a hex mode, so it gets used for disk
+  capacities and allocator sizes alike; one scale would be wrong half the time
+  with no way to tell which was in force.
+- **`=` in CON tapes the plain decimal calculation**, untagged. The converted
+  value is never stored.
+- **Time stops at weeks.** A month is 28–31 days, so converting to one would be
+  quietly making something up.
+
+Conversions run on doubles, so `37 °C` is `98.60000000000001` before the
+display's 12-significant-digit rounding turns it back into `98.6`.
+
 ## Run locally
 
 Service workers and ES modules need a real origin, so `file://` will not work.
@@ -72,13 +98,18 @@ the network and rewrites that entry; a plain reload may not.
 node test/run.mjs
 ```
 
-`test/engine.test.mjs` and `test/hex.test.mjs` are the assertion suites.
+`test/engine.test.mjs`, `test/hex.test.mjs` and `test/units.test.mjs` are the
+assertion suites. The units suite matters more than its size suggests: a wrong
+factor is a silently wrong answer rather than a crash, so every category is
+pinned to an independently known value.
 `test/fuzz.test.mjs` throws 100k random expressions and 20k random keypad
 sequences at each engine and asserts that nothing but a `CalcError` ever escapes;
 its hex pass also asserts no iteration runs slow, which is how an unbounded
 BigInt would show up. `test/assets.test.mjs` checks that every module in `src/`
 is in the service worker's precache list — miss one and the app works perfectly
-right up until the device goes offline.
+right up until the device goes offline. It also checks that every element
+`ui.js` looks up exists in `index.html`, and that the markup has no `style=` or
+inline handler; all three are failures that only appear in a browser.
 
 All are dependency-free. The fuzzer is seeded — reproduce a failure with
 `FUZZ_SEED=<seed> node test/fuzz.test.mjs`.
@@ -117,6 +148,7 @@ node tools/make-icons.mjs
 | `src/parser.js` | Tokens → AST, recursive descent |
 | `src/eval.js` | AST → number (doubles), and AST → BigInt for hex |
 | `src/radix.js` | Rewriting the expression buffer between bases |
+| `src/units.js` | The unit table and the conversion arithmetic |
 | `src/format.js` | Number → display string; expression → tinted spans |
 | `src/model.js` | Expression buffer and keypad command reducer |
 | `src/ui.js` | DOM binding and event delegation |
