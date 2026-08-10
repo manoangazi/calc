@@ -3,6 +3,8 @@ import { formatExpression, formatResult, config, setDecimals, setRadix } from '.
 import { ERRORS } from './errors.js';
 import { addEntry, loadHistory, saveHistory, fromStored } from './history.js';
 import { convertBuffer, DEC, HEX } from './radix.js';
+import { TIM } from './tokenizer.js';
+import { decimalHours } from './time.js';
 import { CATEGORIES, DEFAULT_CATEGORY, applyRates, convert, defaultPair, findCategory, findUnit } from './units.js';
 import { fetchRates, isStale, loadCached, needsRefresh, saveCached } from './currency.js';
 
@@ -41,10 +43,15 @@ let history = [];
 let flashMsg = '';
 let flashTimer = null;
 
-/* 'dec' | 'hex' | 'con'. CON is *not* a radix — it is decimal arithmetic with a
-   conversion applied to the result, so config.radix stays DEC throughout and the
-   engine modules need to know nothing about it. */
+/* 'dec' | 'hex' | 'con' | 'tim'. CON is *not* a radix — it is decimal arithmetic
+   with a conversion applied to the result, so config.radix stays DEC throughout
+   and the engine modules need to know nothing about it. TIM is the opposite: a
+   real radix with its own literals, evaluator and keypad, exactly as HEX is. */
 let mode = 'dec';
+
+/** The radix each mode runs on. CON is absent because it runs on DEC. */
+const MODE_RADIX = { hex: HEX, tim: TIM };
+const RADIX_MODE = { [HEX]: 'hex', [TIM]: 'tim' };
 let conversion = null;
 
 /* The rate set currently loaded into the currency category, or null if we have
@@ -142,6 +149,20 @@ function fitExpression() {
  */
 function renderConverted(value) {
   renderRateNote();
+
+  /* TIM borrows the same line for decimal hours — the number a timesheet or an
+     invoice wants, and the one thing H:MM:SS is bad at. Only a duration has one;
+     a scalar result is already an ordinary number and saying "9 h" of it would
+     be a claim about units that nobody made. */
+  if (mode === 'tim') {
+    const ok = value && typeof value === 'object' && value.duration
+      && Number.isFinite(value.seconds);
+    convertedEl.textContent = ok
+      ? `${formatResult(decimalHours(value.seconds), DEC)} h`
+      : '';
+    return;
+  }
+
   if (mode !== 'con' || !conversion || value === null
       || typeof value !== 'number' || !Number.isFinite(value)) {
     convertedEl.textContent = '';
@@ -320,7 +341,10 @@ function renderTape() {
 
     const val = document.createElement('span');
     val.className = 'tape-value';
-    val.textContent = `= ${formatResult(entry.value)}`;
+    // The entry's own radix, not the live one: a hex BigInt announces itself by
+    // its type, but a TIM duration is an ordinary object and would otherwise
+    // render as decimal seconds while the app sat in DEC.
+    val.textContent = `= ${formatResult(entry.value, entry.radix)}`;
 
     btn.append(src, val);
     li.append(btn);
@@ -355,8 +379,7 @@ historyPanel.addEventListener('click', (e) => {
   // Unconditional: in CON the radix is already DEC, so a `radix !== config.radix`
   // guard would be false and leave the app in CON with a stale unit pair applied
   // to a recalled arithmetic entry.
-  const radix = Number(entry.dataset.radix) === HEX ? HEX : DEC;
-  applyMode(radix === HEX ? 'hex' : 'dec', { rewrite: false });
+  applyMode(RADIX_MODE[Number(entry.dataset.radix)] ?? 'dec', { rewrite: false });
   run(`load:${entry.dataset.src}`);
   openHistory(false);
 });
@@ -461,12 +484,43 @@ function applyDecimals(value) {
  * `radixSel.value`, so that a plain radix change cannot knock the control out of
  * CON behind its back.
  */
+const PAD_CLASS = { [DEC]: 'dec', [HEX]: 'hex', [TIM]: 'tim' };
+
+/* Markers that make a buffer mean something mode-specific: TIM's field
+   separators, and the decimal point, which is a fraction in DEC and a
+   minutes/seconds boundary in TIM. All lowercase, so a hex buffer full of
+   uppercase A-F never matches. */
+const TIME_MARKED = /[.:hms]/;
+
+/**
+ * The buffer across a switch into or out of TIM.
+ *
+ * TIM shares no literal grammar with the other bases, so `convertBuffer` has
+ * nothing to rewrite — the two would have to *reinterpret*, and `20.45` means
+ * twenty-point-four-five in DEC and 20 m 45 s in TIM. Rather than change an
+ * expression's meaning behind the user's back, only pure integer arithmetic
+ * crosses; that means the same thing in every mode. Anything carrying a marker
+ * is cleared and the user is told.
+ *
+ * Integer digits still need converting when hex is the other side, so that leg
+ * goes through the existing `convertBuffer` rather than duplicating it.
+ */
+function crossTime(buf, from, to) {
+  if (TIME_MARKED.test(buf)) return { buf: '', lossy: false, tooLong: false, cleared: true };
+  if (from === HEX) return convertBuffer(buf, HEX, DEC);
+  if (to === HEX) return convertBuffer(buf, DEC, HEX);
+  return { buf, lossy: false, tooLong: false };
+}
+
 function applyRadix(value, { rewrite = true } = {}) {
   const from = config.radix;
   const to = setRadix(value);
 
   if (rewrite && from !== to) {
-    const { buf, lossy, tooLong } = convertBuffer(state.buf, from, to);
+    const crossing = from === TIM || to === TIM;
+    const { buf, lossy, tooLong, cleared } = crossing
+      ? crossTime(state.buf, from, to)
+      : convertBuffer(state.buf, from, to);
     if (tooLong) {
       // Hex is denser than decimal, so a full buffer can fail to fit. Refusing
       // the switch keeps the expression; going ahead would truncate it.
@@ -477,10 +531,14 @@ function applyRadix(value, { rewrite = true } = {}) {
     // `committed` cannot survive the switch: the stored result belongs to the
     // old base. Dropping it re-evaluates the converted buffer as a live preview.
     state = { ...initialState(), buf, caret: buf.length };
-    if (lossy) flash('Fractions dropped');
+    if (cleared) flash('Expression cleared');
+    else if (lossy) flash('Fractions dropped');
   }
 
-  for (const pad of keypads) pad.hidden = pad.classList.contains('hex') !== (to === HEX);
+  const pad = PAD_CLASS[to] ?? 'dec';
+  for (const el of keypads) el.hidden = !el.classList.contains(pad);
+  // Hidden in hex, where results are exact integers. Kept in TIM, where results
+  // are whole seconds but the decimal-hours line underneath is what it governs.
   dpBlock.hidden = to === HEX;
   return true;
 }
@@ -494,7 +552,7 @@ function applyRadix(value, { rewrite = true } = {}) {
  * means a real base conversion first — which `applyRadix` can refuse.
  */
 function applyMode(next, { rewrite = true } = {}) {
-  const radix = next === 'hex' ? HEX : DEC;
+  const radix = MODE_RADIX[next] ?? DEC;
   if (!applyRadix(radix, { rewrite: rewrite && mode !== next })) {
     // Refused: stay put, and put the control back where it was.
     radixSel.value = mode === 'con' ? 'con' : String(config.radix);
@@ -509,11 +567,13 @@ function applyMode(next, { rewrite = true } = {}) {
     if (!conversion) selectCategory(DEFAULT_CATEGORY);
   } else {
     // Cleared, not just hidden — a stale conversion must not flash back into
-    // view the next time CON is selected.
+    // view the next time CON or TIM is selected.
     convertedEl.textContent = '';
   }
   convRow.hidden = next !== 'con';
-  convertedEl.hidden = next !== 'con';
+  // The one piece of display shared by two modes: converted units in CON,
+  // decimal hours in TIM.
+  convertedEl.hidden = next !== 'con' && next !== 'tim';
   catBlock.hidden = next !== 'con';
 
   renderTape();
@@ -525,7 +585,7 @@ function applyMode(next, { rewrite = true } = {}) {
    fourth option appeared. */
 radixSel.addEventListener('change', () => {
   const v = radixSel.value;
-  applyMode(v === 'con' ? 'con' : v === String(HEX) ? 'hex' : 'dec');
+  applyMode(v === 'con' ? 'con' : (RADIX_MODE[Number(v)] ?? 'dec'));
 });
 
 /* ---- unit conversion ----------------------------------------------------- */
@@ -638,6 +698,10 @@ window.addEventListener('keydown', (e) => {
   // a-f are digits only in hex. In decimal they stay free for KEYMAP, where x
   // already means multiply.
   else if (config.radix === HEX && /^[a-f]$/i.test(e.key)) cmd = `digit:${e.key.toUpperCase()}`;
+  // h/m/s are field markers only in TIM. Elsewhere they stay free, and in hex
+  // "f" above has already claimed its letter.
+  else if (config.radix === TIM && /^[hms]$/i.test(e.key)) cmd = `unit:${e.key.toLowerCase()}`;
+  else if (config.radix === TIM && e.key === ':') cmd = 'colon';
   else if (e.key === 'ArrowLeft') cmd = `caret:${state.caret - 1}`;
   else if (e.key === 'ArrowRight') cmd = `caret:${state.caret + 1}`;
   else if (e.key === 'Home') cmd = 'caret:0';

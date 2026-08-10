@@ -12,18 +12,25 @@
  * switched back, and BigInt cannot be serialised — JSON.stringify throws on it
  * outright, which would have silently killed persistence for the whole tape.
  */
-import { DEC, HEX } from './tokenizer.js';
+import { DEC, HEX, TIM } from './tokenizer.js';
 
 export const MAX_ENTRIES = 50;
 export const STORAGE_KEY = 'manocalc.history';
 
-const LEGAL_SRC = { [DEC]: /^[0-9.+\-*/^()]+$/, [HEX]: /^[0-9A-F+\-*/^()]+$/ };
+const LEGAL_SRC = {
+  [DEC]: /^[0-9.+\-*/^()]+$/,
+  [HEX]: /^[0-9A-F+\-*/^()]+$/,
+  [TIM]: /^[0-9:.hms+\-*/^()]+$/,
+};
 const LEGAL_BIGINT = /^-?[0-9]+$/;
 const MAX_SRC = 120;
 const MAX_VALUE_DIGITS = 400;
 
 /** The radix an entry claims, normalised. Entries written before hex existed have none. */
-export const entryRadix = (entry) => (entry && entry.radix === HEX ? HEX : DEC);
+export const entryRadix = (entry) => {
+  if (!entry) return DEC;
+  return entry.radix === HEX ? HEX : entry.radix === TIM ? TIM : DEC;
+};
 
 export function isValidEntry(entry) {
   if (!entry || typeof entry.src !== 'string') return false;
@@ -31,6 +38,16 @@ export function isValidEntry(entry) {
   const radix = entryRadix(entry);
   if (entry.src.length === 0 || entry.src.length > MAX_SRC) return false;
   if (!LEGAL_SRC[radix].test(entry.src)) return false;
+
+  // A TIM entry stores the seconds count flat, plus the one bit that cannot be
+  // recovered from it: whether those seconds are a duration or a plain number.
+  if (radix === TIM) {
+    return (
+      typeof entry.value === 'number' &&
+      Number.isFinite(entry.value) &&
+      typeof entry.duration === 'boolean'
+    );
+  }
 
   if (radix === HEX) {
     return (
@@ -43,16 +60,34 @@ export function isValidEntry(entry) {
   return typeof entry.value === 'number' && Number.isFinite(entry.value);
 }
 
-/** A live entry (BigInt value in hex) as something JSON can hold. */
+/** A live entry (BigInt in hex, a typed object in TIM) as something JSON can hold. */
 export function toStored(entry) {
-  if (typeof entry.value !== 'bigint') return { src: entry.src, value: entry.value };
-  return { src: entry.src, value: entry.value.toString(10), radix: HEX };
+  if (typeof entry.value === 'bigint') {
+    return { src: entry.src, value: entry.value.toString(10), radix: HEX };
+  }
+  if (entry.value && typeof entry.value === 'object') {
+    return {
+      src: entry.src,
+      value: entry.value.seconds,
+      duration: entry.value.duration === true,
+      radix: TIM,
+    };
+  }
+  return { src: entry.src, value: entry.value };
 }
 
 /** The stored shape back as something formatResult can render. */
 export function fromStored(entry) {
-  if (entryRadix(entry) !== HEX) return { src: entry.src, value: entry.value, radix: DEC };
-  return { src: entry.src, value: BigInt(entry.value), radix: HEX };
+  const radix = entryRadix(entry);
+  if (radix === HEX) return { src: entry.src, value: BigInt(entry.value), radix: HEX };
+  if (radix === TIM) {
+    return {
+      src: entry.src,
+      value: { seconds: entry.value, duration: entry.duration === true },
+      radix: TIM,
+    };
+  }
+  return { src: entry.src, value: entry.value, radix: DEC };
 }
 
 /**

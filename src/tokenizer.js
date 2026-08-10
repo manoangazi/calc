@@ -7,6 +7,9 @@ export const RPAREN = 'rparen';
 
 export const DEC = 10;
 export const HEX = 16;
+/* Base 60, honestly: TIM's fields really are sexagesimal. Keeping it a radix
+   rather than a mode flag is what lets every lookup table below stay one map. */
+export const TIM = 60;
 
 const OPS = '+-*/^';
 
@@ -14,9 +17,25 @@ const OPS = '+-*/^';
  * What counts as part of a number token, per radix. Hex has no fractional form —
  * hex mode is integer-only — so the point is not a number character there and
  * falls through to the "unexpected character" arm.
+ *
+ * TIM's units are lowercase and hex's digits are uppercase, so the two letter
+ * sets are disjoint even though both modes admit letters.
  */
-const NUM_CHAR = { [DEC]: /[0-9.]/, [HEX]: /[0-9A-F]/ };
-const WELL_FORMED = { [DEC]: /^(\d+(\.\d*)?|\.\d+)$/, [HEX]: /^[0-9A-F]+$/ };
+const NUM_CHAR = { [DEC]: /[0-9.]/, [HEX]: /[0-9A-F]/, [TIM]: /[0-9:.hms]/ };
+
+/*
+ * A TIM literal is a bare integer (a scalar), or one of the two duration
+ * spellings. Checked loosely here — shape only — because `time.js` owns the
+ * field ordering rules and rejecting twice in two places is how the two drift
+ * apart. What matters is that `1:20.45` comes out as *one* token, not three.
+ */
+const TIM_FORM = /^(?:\d+|(?:\d*:)?\d*(?:\.\d*)?|(?:\d+[hms])+\d*)$/;
+
+const WELL_FORMED = {
+  [DEC]: /^(\d+(\.\d*)?|\.\d+)$/,
+  [HEX]: /^[0-9A-F]+$/,
+  [TIM]: TIM_FORM,
+};
 
 export function tokenize(src, radix = DEC) {
   const isNumChar = NUM_CHAR[radix] ?? NUM_CHAR[DEC];

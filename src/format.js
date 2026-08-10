@@ -4,7 +4,8 @@
  * while the app is running. The group separator is a thin space so it can never
  * collide with a decimal point.
  */
-import { DEC, HEX } from './tokenizer.js';
+import { DEC, HEX, TIM } from './tokenizer.js';
+import { formatDuration } from './time.js';
 
 export const config = {
   decimalSep: '.',
@@ -17,11 +18,13 @@ export const DECIMAL_CHOICES = ['auto', 1, 2, 3, 4, 5];
 const MIN_DECIMALS = 1;
 const MAX_DECIMALS = 5;
 
-/** Digits grouped in fours in hex (FFFF FFFF), threes in decimal. */
-const GROUP_SIZE = { [DEC]: 3, [HEX]: 4 };
+/** Digits grouped in fours in hex (FFFF FFFF), threes in decimal. Never in TIM:
+    the fields already have their own separators and a thin space between them
+    would read as a fourth. */
+const GROUP_SIZE = { [DEC]: 3, [HEX]: 4, [TIM]: Infinity };
 
 /** Which characters make up a number literal, per radix. */
-export const NUM_CHARS = { [DEC]: /[0-9.]/, [HEX]: /[0-9A-F]/ };
+export const NUM_CHARS = { [DEC]: /[0-9.]/, [HEX]: /[0-9A-F]/, [TIM]: /[0-9:.hms]/ };
 
 /**
  * 'auto' shows what the number actually is; 1..5 fixes the places. Display only —
@@ -36,10 +39,10 @@ export function setDecimals(value) {
   return config.decimals;
 }
 
-/** Anything that is not exactly 16 means decimal, including junk from storage. */
+/** Anything that is not a known base means decimal, including junk from storage. */
 export function setRadix(value) {
   const n = typeof value === 'string' ? Number(value) : value;
-  config.radix = n === HEX ? HEX : DEC;
+  config.radix = n === HEX ? HEX : n === TIM ? TIM : DEC;
   return config.radix;
 }
 
@@ -94,7 +97,20 @@ export function formatHex(v) {
 
 const sci = (x) => x.toExponential(6).replace('e', '×10^').replace('+', '');
 
-export function formatResult(n) {
+/**
+ * `radix` is explicit for the same reason `formatExpression` takes it: the tape
+ * renders each entry in the base it was calculated in, not the one currently
+ * selected. It matters more here than it looks — a hex result announces itself
+ * by being a BigInt, but a TIM result is an ordinary object and there is no way
+ * to tell a duration from a plain number without being told.
+ */
+export function formatResult(n, radix = config.radix) {
+  if (radix === TIM && n && typeof n === 'object') {
+    // A scalar in TIM is just a number — how many 20-minute slots fit in three
+    // hours is 9, and rendering that as 0:00:09 would be a different claim.
+    return n.duration ? formatDuration(n.seconds) : formatResult(n.seconds, DEC);
+  }
+
   // Hex results arrive as BigInt, where there is no NaN, no ∞ and no rounding
   // to apply — the decimal-places setting simply has nothing to act on.
   if (typeof n === 'bigint') return formatHex(n);
@@ -148,7 +164,10 @@ export function formatExpression(buf, radix = config.radix) {
       const intLen = dot === -1 ? raw.length : dot;
       for (let k = 0; k < raw.length; k++) {
         const ch = raw[k];
-        parts.push({ kind: 'num', text: ch === '.' ? config.decimalSep : ch, i: start + k });
+        // The point is only a decimal separator in DEC. In TIM it is a field
+        // marker and must survive a decimalSep setting untouched.
+        const text = ch === '.' && radix === DEC ? config.decimalSep : ch;
+        parts.push({ kind: 'num', text, i: start + k });
         if (k < intLen - 1 && (intLen - 1 - k) % size === 0) {
           parts.push({ kind: 'group', text: config.groupSep });
         }

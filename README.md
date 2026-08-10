@@ -40,8 +40,7 @@ inexact above 2^53, which is only 14 hex digits. Consequences worth knowing:
   the tab dies.
 
 The keypad becomes a nibble table in hex — `0`–`F` in reading order across five
-columns. Clear reads `AC` there so it cannot be misread as the hex digit `C` two
-keys away.
+columns.
 
 The base is deliberately not persisted; the app always opens in decimal.
 
@@ -95,6 +94,52 @@ every near-realtime provider was ruled out on that basis alone.
   a quote without being one, so it was left out rather than faked.
 - 18 currencies: the majors plus the SA trade partners and the CMA pegs
   (`BWP`, `NAD`).
+
+## Time
+
+`TIM` is the fourth option on the same control, and unlike `CON` it *is* a base:
+`1h20m45s` is a literal in a different number system the way `FF` is, with its
+own tokenizer charset, evaluator, keypad and result format. Internally the radix
+is 60.
+
+Two spellings are accepted and mean the same thing. The keypad emits the first;
+the second is there for a hardware keyboard.
+
+| typed | also | means |
+|---|---|---|
+| `1h20m45s` | `1:20.45` | 1 h 20 m 45 s |
+| `1h20` | `1:20` | 1 h 20 m — a trailing bare group takes the next unit down |
+| `90m` | `:90` | 90 min — fields may overflow on input |
+| `45s` | `.45` | 45 s |
+| `2` | — | the **scalar** two, because it carries no marker at all |
+
+Both are positional: what a field means comes from the *markers present*, never
+from counting digits. That is what removes the `H:MM`-versus-`MM:SS` ambiguity —
+`1:20` can only be 1 h 20 m, and `20.45` can only be 20 m 45 s. Results are
+always canonical `H:MM:SS`, and hours accumulate past 24 (`27:30:00`) rather than
+rolling into days.
+
+Durations carry a **type**, and that is what makes the mode trustworthy:
+
+- `dur ± dur` → duration; `dur × scalar` and `dur ÷ scalar` → duration.
+- **`dur ÷ dur` → a plain number.** `3h / 20m` is `9` — how many 20-minute slots
+  fit in three hours — and it renders as `9`, not `0:00:09`.
+- `dur × dur`, `dur ± scalar` and `dur ^ anything` are **refused** with "Not a
+  time operation". A duration squared is not a quantity that exists, and
+  `1h + 2` does not say plus what; a plausible wrong answer would be worse than
+  none.
+
+Whole seconds is the model, not a display rounding, so `×` and `÷` round at the
+operation: `1h / 7` is `0:08:34` and multiplying that back by 7 gives `0:59:58`.
+
+The converted line under the result carries **decimal hours** — the number a
+timesheet or an invoice wants, and the one thing `H:MM:SS` is bad at. The
+decimal-places setting governs that line.
+
+Only pure integer arithmetic survives a switch into or out of `TIM`, since it
+means the same thing in every mode. Anything with a marker or a decimal point
+would change meaning — `20.45` is twenty-point-four-five in `DEC` and 20 m 45 s
+here — so it is cleared and the hint line says so.
 
 ## Run locally
 

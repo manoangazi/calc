@@ -18,6 +18,10 @@ export const ERRORS = {
   undef:    { display: '—', hint: 'Not a real number' },
   overflow: { display: '∞', hint: 'Result too large to show' },
   toobig:   { display: '—', hint: 'Number too large' },
+  // TIM only. A duration times a duration is not a quantity that exists, and a
+  // duration plus a bare number does not say plus what — both are refused rather
+  // than coerced, because a plausible wrong answer is worse than no answer.
+  timetype: { display: '—', hint: 'Not a time operation' },
 };
 
 export const isCalcError = (e) => e instanceof CalcError && e.code in ERRORS;

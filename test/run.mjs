@@ -6,6 +6,7 @@ const suites = [
   'test/hex.test.mjs',
   'test/units.test.mjs',
   'test/currency.test.mjs',
+  'test/time.test.mjs',
   'test/assets.test.mjs',
   'test/fuzz.test.mjs',
 ];

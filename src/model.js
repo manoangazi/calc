@@ -1,8 +1,9 @@
 import { parse } from './parser.js';
-import { evaluate, evaluateHex } from './eval.js';
+import { evaluate, evaluateHex, evaluateTime } from './eval.js';
 import { isCalcError } from './errors.js';
 import { toPlainString, config } from './format.js';
-import { DEC, HEX } from './tokenizer.js';
+import { DEC, HEX, TIM } from './tokenizer.js';
+import { canInsertMarker, toBuffer } from './time.js';
 
 export const MAX_LENGTH = 120;
 
@@ -12,12 +13,16 @@ const AFTER_OPEN = OPERATORS + '(';
 
 /* Radix-dependent character classes. Hex has no point, so `dot` is inert there
    and the keypad hides the key rather than relying on that. */
-const TRAILING = { [DEC]: /[0-9.]+$/, [HEX]: /[0-9A-F]+$/ };
-const LEADING = { [DEC]: /^[0-9.]+/, [HEX]: /^[0-9A-F]+/ };
-const LEGAL_SRC = { [DEC]: /^[0-9.+\-*/^()]*$/, [HEX]: /^[0-9A-F+\-*/^()]*$/ };
-const LEGAL_DIGIT = { [DEC]: /^[0-9]$/, [HEX]: /^[0-9A-F]$/ };
+const TRAILING = { [DEC]: /[0-9.]+$/, [HEX]: /[0-9A-F]+$/, [TIM]: /[0-9:.hms]+$/ };
+const LEADING = { [DEC]: /^[0-9.]+/, [HEX]: /^[0-9A-F]+/, [TIM]: /^[0-9:.hms]+/ };
+const LEGAL_SRC = {
+  [DEC]: /^[0-9.+\-*/^()]*$/,
+  [HEX]: /^[0-9A-F+\-*/^()]*$/,
+  [TIM]: /^[0-9:.hms+\-*/^()]*$/,
+};
+const LEGAL_DIGIT = { [DEC]: /^[0-9]$/, [HEX]: /^[0-9A-F]$/, [TIM]: /^[0-9]$/ };
 
-const radix = () => (config.radix === HEX ? HEX : DEC);
+const radix = () => (config.radix === HEX ? HEX : config.radix === TIM ? TIM : DEC);
 
 export function initialState() {
   return { buf: '', caret: 0, committed: false, result: null, error: null };
@@ -41,7 +46,9 @@ export function previewSource(buf) {
 function run(src) {
   const r = radix();
   const ast = parse(src, r);
-  return r === HEX ? evaluateHex(ast) : evaluate(ast);
+  if (r === HEX) return evaluateHex(ast);
+  if (r === TIM) return evaluateTime(ast);
+  return evaluate(ast);
 }
 
 /** Evaluate for the live preview. Returns a value, or null if not yet valid. */
@@ -87,7 +94,16 @@ export function plainDecimal(n) {
 }
 
 function resumeFrom(state) {
-  return state.result === null ? '' : (plainDecimal(state.result) ?? '');
+  if (state.result === null) return '';
+  if (radix() === TIM) {
+    const v = state.result;
+    // A duration writes back in the suffix spelling the keys produce. A scalar
+    // writes back as digits — but only if it is a whole number, because "2.5"
+    // in a TIM buffer would read as 2m 5s, which is a different value entirely.
+    if (v.duration) return toBuffer(v) ?? '';
+    return Number.isInteger(v.seconds) ? (plainDecimal(v.seconds) ?? '') : '';
+  }
+  return plainDecimal(state.result) ?? '';
 }
 
 /** Base buffer for an insertion, honouring the post-"=" rules. */
@@ -129,7 +145,8 @@ function parenInsert(before, forced) {
 /**
  * Apply a keypad command. Returns a new state; never mutates the input.
  * Commands:
- *   digit:<0-9A-F> | zeros | dot | op:<+-*\/> | paren | parenforce
+ *   digit:<0-9A-F> | zeros | dot | colon | unit:<h|m|s> | op:<+-*\/> | paren
+ *   parenforce
  *   clear | back | equals | caret:<n>
  */
 export function apply(state, cmd) {
@@ -171,7 +188,9 @@ export function apply(state, cmd) {
       const value = run(src);
       // Overflow still commits: the result line shows ∞ rather than nothing.
       // A hex result is a BigInt and is exact by construction, so it never is one.
-      const finite = typeof value === 'bigint' || Number.isFinite(value);
+      const finite = typeof value === 'bigint'
+        ? true
+        : Number.isFinite(radix() === TIM ? value.seconds : value);
       return { buf: src, caret: src.length, committed: true, result: value, error: finite ? null : 'overflow' };
     } catch (e) {
       if (!isCalcError(e)) throw e;
@@ -195,6 +214,22 @@ export function apply(state, cmd) {
       text = '0';
     }
     return insert(state, before, text, after);
+  }
+
+  /*
+   * The field markers. In TIM the point is one of them — it separates minutes
+   * from seconds rather than introducing a fraction — so `dot` routes here
+   * alongside `colon` and `unit:<h|m|s>`, and `time.js` owns the one rule they
+   * all obey: each marker at most once, strictly descending, no mixing the two
+   * spellings inside a literal.
+   */
+  if (kind === 'colon' || kind === 'unit' || (kind === 'dot' && radix() === TIM)) {
+    if (radix() !== TIM) return state;
+    const marker = kind === 'colon' ? ':' : kind === 'dot' ? '.' : arg;
+    if (!':.hms'.includes(marker) || marker === '') return state;
+    if (lastChar(before) === ')') before += '*';
+    if (!canInsertMarker(trailingNumber(before), leadingNumber(after), marker)) return state;
+    return insert(state, before, marker, after);
   }
 
   if (kind === 'dot') {

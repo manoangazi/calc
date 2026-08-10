@@ -147,12 +147,12 @@ The division key shows `/` rather than `÷`. As a full-height diagonal it is the
 opposite case — at an equal font-size its ink runs about 1.4× the others — so it
 is set smaller (24px) and heavier (700) to carry the same visual mass.
 
-`C`, `( )` and `=` stay at digit size. Every value has a landscape counterpart
+`AC`, `( )` and `=` stay at digit size. Every value has a landscape counterpart
 and a third set below 360px height. In both landscape blocks the constraint is
 the key box, not the ink: with `line-height: 1` a glyph much above the row height
 overflows its key, so fitting wins over parity there.
 
-**Clear is not a function key.** `C` carries its own colour (`--danger`) on its
+**Clear is not a function key.** `AC` carries its own colour (`--danger`) on its
 own tint rather than sharing the accent with `( )` and `^` — it throws work away
 and should not look like a sibling of the keys that build an expression. Measured
 6.1:1 in light and 7.1:1 in dark.
@@ -233,7 +233,7 @@ The point of this stage is to prove the deployment path, not the maths.
 - Tokenizer + recursive-descent parser + evaluator for `+ − × ÷`, decimals,
   nested parens, unary minus.
 - Display card with expression + dimmed live result, and the promote-on-`=` swap.
-- Full keypad: digits, `00`, `.`, four operators, `C`, smart `( )`, `=`, `⌫`.
+- Full keypad: digits, `00`, `.`, four operators, `AC`, smart `( )`, `=`, `⌫`.
 - Live evaluation on every keystroke with implicit-close preview.
 - Digit grouping and accent-tinted operators in the expression renderer.
 - Repo created, GitHub Pages enabled, URL opens in mobile Safari.
@@ -401,8 +401,12 @@ letter strip above an unchanged keypad. The strip is the smaller change and the
 better answer if decimal is the common case; the nibble table wins when hex is.
 The cost is that flipping the control relocates every digit.
 
-Clear reads `AC` in hex. With a hex `C` two keys away, distinguishing them by
-colour alone was a real misread risk on a phone.
+Clear reads `AC` in hex, because a hex `C` sits two keys away and distinguishing
+them by colour alone was a real misread risk on a phone. **The label was later
+adopted on every keypad** — a key that does the same thing in all four modes
+should not change its name between them, and "AC" is the more accurate of the
+two names besides. No sizing change was needed: two characters at the base 28px
+measure 36px wide in an 88px key and land at the same 20px of ink as a digit.
 
 **Storage.** A hex tape entry carries `radix: 16` and holds its value as a
 decimal *string*. Both are load-bearing: without the radix, `FF+FF` is ambiguous
@@ -551,6 +555,76 @@ tell them apart.
 was added to the CSP rather than widening to `https:`; this is the only place
 the app is allowed to reach off-origin, and it is a value worth keeping narrow
 on purpose.
+
+### Stage 10 — Time mode (TIM) · done
+
+**A mode, not a CON category — the opposite call to Stage 9, for the opposite
+reason.** Currency was a category because only the *factor* was new; the
+literals, keypad and arithmetic were already there. `1h20m45s` is a literal in
+another number system, exactly as `FF` is, so it needs its own tokenizer charset,
+evaluator, keypad and result format. That is what a mode is. `config.radix`
+gains the value **60**, which keeps every `{ [DEC]: …, [HEX]: … }` lookup table
+in `tokenizer.js`, `model.js` and `format.js` a single map rather than a map plus
+a special case.
+
+**Meaning comes from the markers present, never from counting digits.** `:`
+separates hours from minutes and `.` separates minutes from seconds, so `1:20` is
+1 h 20 m and `20.45` is 20 m 45 s, unambiguously and without a `H:MM`-versus-
+`MM:SS` setting to get wrong. `.1` is therefore **one second**, not a tenth of
+anything — the single thing a later refactor is most likely to break, and pinned
+in the tests as such.
+
+**Two spellings, one parser.** `h`/`m`/`s` are the same positional markers as
+`:`/`.` with better labels, so both resolve in `parseLiteral` into one value and
+nothing downstream can tell which was typed; the test suite asserts the two
+agree row by row precisely to stop them drifting apart. The keypad emits the
+suffix form (a `s` key earns its slot; `.` does not once `m` exists), and the
+colon form stays legal for a hardware keyboard and for history recall. Mixing
+them inside one literal — `1h20.45` — is rejected rather than resolved by
+precedence, because it is the one input where the two grammars could disagree
+about which field a trailing number belongs to.
+
+**Input is lenient, output is canonical.** `90m` and `100h` are accepted and
+normalise; results are always three fields, `H:MM:SS`, with hours accumulating
+past 24 rather than rolling into days. That asymmetry is deliberate: short to
+type, unambiguous to read.
+
+**Durations carry a type, and the illegal combinations error rather than
+coerce.** `dur ÷ dur` is a *scalar* — `3h / 20m` is 9 slots and must not render
+as `0:00:09` — while `dur × dur`, `dur ± scalar` and `dur ^ anything` raise
+`timetype` through the same quiet-hint path `divzero` already uses. A bare number
+with no marker is a scalar, which is what makes `1h / 2` mean what it looks like.
+Without the type, `2h * 3h` would return a plausible number for a quantity that
+does not exist, and there would be nothing on screen to distinguish a count from
+a length of time.
+
+**Whole seconds is the model, not a display rounding**, so `×` and `÷` round at
+the operation and `(1h / 7) * 7` is `0:59:58`. That is the honest cost of 1-second
+granularity and the tests pin it, so a future change to the granularity has to
+come and edit the assertion rather than silently alter every answer.
+
+**`formatResult` gained an explicit `radix` parameter.** A hex result announces
+itself by being a `BigInt`; a TIM result is an ordinary object, and there is no
+way to tell a duration from a plain number without being told. The tape renders
+each entry in the base it was calculated in, so a TIM duration reads `2:25:46`
+while the app is sitting in DEC — mirroring what `formatExpression` already did.
+
+**Only pure integer arithmetic crosses a mode switch.** `convertBuffer` has
+nothing to rewrite between TIM and the other bases — it would have to
+*reinterpret*, and `20.45` is twenty-point-four-five in DEC and 20 m 45 s here.
+Rather than change an expression's meaning behind the user's back, a buffer
+carrying any marker is cleared and the hint says so; integer digits carry over,
+routed through the existing `convertBuffer` when hex is the other side.
+
+**The converted line is shared with CON**, showing decimal hours — the number a
+timesheet wants and the one thing `H:MM:SS` is bad at. No new DOM, and it
+inherits hold-to-copy and the decimal-places setting for free.
+
+**Unit keys are sized per glyph, by measured ink.** `h` is an ascender while `m`
+and `s` sit at the x-height, so at a shared font-size `h` drew 18px of ink against
+their 12px and read half again as large. Measured with canvas
+`actualBoundingBox` and set to the 20px the digits and operators already use —
+the same method, and the same trap, as the operator sizing in Stage 5.
 
 ---
 

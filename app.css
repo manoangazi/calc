@@ -484,6 +484,22 @@ body {
 .keypad.hex .key[data-cmd="zeros"] { font-size: 23px; }
 
 /*
+ * TIM keeps the decimal four-column grid, so nothing needs re-laying out. The
+ * unit keys carry the accent because they are markers, not digits.
+ *
+ * Sized by measured ink, one glyph at a time, for the same reason the operators
+ * are: "h" is an ascender and "m" and "s" sit at the x-height, so at a shared
+ * font-size h draws 18px of ink against their 12px and reads half again as
+ * large. These three values put all of them at the 20px the digits and operators
+ * already use. Re-measure with canvas actualBoundingBox rather than trusting
+ * font-size if they are ever changed.
+ */
+.key.unit { color: var(--accent); }
+.key[data-cmd="unit:h"] { font-size: 27px; }
+.key[data-cmd="unit:m"] { font-size: 39px; }
+.key[data-cmd="unit:s"] { font-size: 38px; }
+
+/*
  * Landscape: the display takes only what it needs and the keypad absorbs the
  * rest, so five rows always fit whatever the height is. Fixed row heights were
  * the wrong tool here — any dvh value that fits one phone overflows another.
@@ -523,6 +539,10 @@ body {
   .keypad.hex .key.fn { font-size: 18px; }
   .keypad.hex .key.clear { font-size: 19px; }
   .keypad.hex .key[data-cmd="zeros"] { font-size: 20px; }
+  /* Scaled with the operators they sit beside, keeping the per-glyph ratios. */
+  .key[data-cmd="unit:h"] { font-size: 20px; }
+  .key[data-cmd="unit:m"] { font-size: 29px; }
+  .key[data-cmd="unit:s"] { font-size: 28px; }
 }
 
 /* Shortest landscape phones (SE-class, 320px). Five key rows leave about 26px
@@ -547,6 +567,9 @@ body {
   .keypad.hex .key.fn { font-size: 13px; }
   .keypad.hex .key.clear { font-size: 14px; }
   .keypad.hex .key[data-cmd="zeros"] { font-size: 15px; }
+  .key[data-cmd="unit:h"] { font-size: 14px; }
+  .key[data-cmd="unit:m"] { font-size: 21px; }
+  .key[data-cmd="unit:s"] { font-size: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

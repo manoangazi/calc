@@ -26,6 +26,7 @@
       <option value="10" selected>DEC</option>
       <option value="16">HEX</option>
       <option value="con">CON</option>
+      <option value="60">TIM</option>
     </select>
     <span class="chev" aria-hidden="true">&#9662;</span>
   </label>
@@ -89,8 +90,11 @@
   </div>
 </main>
 
+<!-- Clear reads "AC" on every keypad. It started as a hex-only label, to keep it
+     from being misread as the hex digit C two keys away, but a key that means
+     the same thing in all four modes should not change its name between them. -->
 <div class="keypad dec" role="group" aria-label="Calculator keypad">
-  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">C</button>
+  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">AC</button>
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
   <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
@@ -117,8 +121,7 @@
 </div>
 
 <!-- Hex lays the digits out as a nibble table, 0 through F in reading order,
-     rather than in phone order. Clear is "AC" here so it cannot be misread as
-     the hex digit C sitting two keys away. -->
+     rather than in phone order. -->
 <div class="keypad hex" role="group" aria-label="Hexadecimal keypad" hidden>
   <button type="button" class="key" data-cmd="digit:0">0</button>
   <button type="button" class="key" data-cmd="digit:1">1</button>
@@ -148,6 +151,39 @@
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
   <button type="button" class="key" data-cmd="zeros">00</button>
+  <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
+</div>
+
+<!-- TIM is the decimal keypad with three substitutions and nothing else moved, so
+     muscle memory survives the switch. ^ becomes h (a duration raised to a power
+     is not a quantity), 00 becomes m (a seconds key earns the slot far more
+     here), and . becomes s (redundant once m exists). The colon spelling —
+     1:20.45 — stays legal input for a hardware keyboard and for history recall;
+     it is simply not what the on-screen keys emit. -->
+<div class="keypad tim" role="group" aria-label="Time keypad" hidden>
+  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">AC</button>
+  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
+  <button type="button" class="key unit" data-cmd="unit:h" aria-label="Hours">h</button>
+  <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
+
+  <button type="button" class="key" data-cmd="digit:7">7</button>
+  <button type="button" class="key" data-cmd="digit:8">8</button>
+  <button type="button" class="key" data-cmd="digit:9">9</button>
+  <button type="button" class="key op" data-cmd="op:*" aria-label="Multiply">&times;</button>
+
+  <button type="button" class="key" data-cmd="digit:4">4</button>
+  <button type="button" class="key" data-cmd="digit:5">5</button>
+  <button type="button" class="key" data-cmd="digit:6">6</button>
+  <button type="button" class="key op" data-cmd="op:-" aria-label="Minus">&minus;</button>
+
+  <button type="button" class="key" data-cmd="digit:1">1</button>
+  <button type="button" class="key" data-cmd="digit:2">2</button>
+  <button type="button" class="key" data-cmd="digit:3">3</button>
+  <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
+
+  <button type="button" class="key" data-cmd="digit:0">0</button>
+  <button type="button" class="key unit" data-cmd="unit:m" aria-label="Minutes">m</button>
+  <button type="button" class="key unit" data-cmd="unit:s" aria-label="Seconds">s</button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 
