@@ -84,6 +84,38 @@ body {
   transition: transform 80ms ease;
 }
 .icon-btn { font-size: 19px; }
+
+/* The base control. A native select so iOS gives it the system picker and the
+   accessibility for free; the chevron is a glyph rather than a background image,
+   because the CSP allows no data: URIs for img-src. */
+.radix { display: flex; align-items: center; gap: 3px; }
+.radix select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 6px 2px 6px 0;
+  margin: -6px 0;
+  border-radius: 6px;
+}
+.radix select option { color: #000; }
+.radix .chev { font-size: 11px; opacity: 0.75; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .text-btn { font-size: 15px; }
 .icon-btn:active, .text-btn:active { transform: scale(0.92); }
 
@@ -360,6 +392,19 @@ body {
 }
 
 /*
+ * Hex lays 0-F out as a nibble table, so the grid is five columns rather than
+ * four and every key is about a fifth narrower. Single glyphs are unaffected —
+ * the keys are no shorter, and these are sized by height. Only the multi-
+ * character keys have to come down to keep clear of the edges.
+ */
+.keypad.hex { grid-template-columns: repeat(5, 1fr); }
+/* .keypad sets display:grid, which would otherwise beat the hidden attribute. */
+.keypad[hidden] { display: none; }
+.keypad.hex .key.fn { font-size: 21px; }
+.keypad.hex .key.clear { font-size: 22px; }
+.keypad.hex .key[data-cmd="zeros"] { font-size: 23px; }
+
+/*
  * Landscape: the display takes only what it needs and the keypad absorbs the
  * rest, so five rows always fit whatever the height is. Fixed row heights were
  * the wrong tool here — any dvh value that fits one phone overflows another.
@@ -393,6 +438,9 @@ body {
      line-height 1 does not contain a glyph this size. */
   .key.op { font-size: 30px; }
   .key[data-cmd="op:/"] { font-size: 20px; }
+  .keypad.hex .key.fn { font-size: 18px; }
+  .keypad.hex .key.clear { font-size: 19px; }
+  .keypad.hex .key[data-cmd="zeros"] { font-size: 20px; }
 }
 
 /* Shortest landscape phones (SE-class, 320px). Five key rows leave about 26px
@@ -410,6 +458,9 @@ body {
   .key { font-size: 17px; }
   .key.op { font-size: 22px; }
   .key[data-cmd="op:/"] { font-size: 15px; }
+  .keypad.hex .key.fn { font-size: 13px; }
+  .keypad.hex .key.clear { font-size: 14px; }
+  .keypad.hex .key[data-cmd="zeros"] { font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

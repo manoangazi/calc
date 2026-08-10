@@ -1,13 +1,23 @@
 import { parse } from './parser.js';
-import { evaluate } from './eval.js';
+import { evaluate, evaluateHex } from './eval.js';
 import { isCalcError } from './errors.js';
-import { toPlainString } from './format.js';
+import { toPlainString, config } from './format.js';
+import { DEC, HEX } from './tokenizer.js';
 
 export const MAX_LENGTH = 120;
 
 /** Every binary operator key. Kept in one place so ^ cannot be missed. */
 export const OPERATORS = '+-*/^';
 const AFTER_OPEN = OPERATORS + '(';
+
+/* Radix-dependent character classes. Hex has no point, so `dot` is inert there
+   and the keypad hides the key rather than relying on that. */
+const TRAILING = { [DEC]: /[0-9.]+$/, [HEX]: /[0-9A-F]+$/ };
+const LEADING = { [DEC]: /^[0-9.]+/, [HEX]: /^[0-9A-F]+/ };
+const LEGAL_SRC = { [DEC]: /^[0-9.+\-*/^()]*$/, [HEX]: /^[0-9A-F+\-*/^()]*$/ };
+const LEGAL_DIGIT = { [DEC]: /^[0-9]$/, [HEX]: /^[0-9A-F]$/ };
+
+const radix = () => (config.radix === HEX ? HEX : DEC);
 
 export function initialState() {
   return { buf: '', caret: 0, committed: false, result: null, error: null };
@@ -27,11 +37,18 @@ export function previewSource(buf) {
   return buf + ')'.repeat(openDepth(buf));
 }
 
-/** Evaluate for the live preview. Returns a number, or null if not yet valid. */
+/** Parse and evaluate in whichever base is live. */
+function run(src) {
+  const r = radix();
+  const ast = parse(src, r);
+  return r === HEX ? evaluateHex(ast) : evaluate(ast);
+}
+
+/** Evaluate for the live preview. Returns a value, or null if not yet valid. */
 export function preview(buf) {
   if (buf === '') return null;
   try {
-    return evaluate(parse(previewSource(buf)));
+    return run(previewSource(buf));
   } catch {
     return null;
   }
@@ -40,18 +57,24 @@ export function preview(buf) {
 const lastChar = (s) => (s.length ? s[s.length - 1] : '');
 
 /** Digits of the number token ending at the caret. */
-const trailingNumber = (before) => (before.match(/[0-9.]+$/) || [''])[0];
+const trailingNumber = (before) => (before.match(TRAILING[radix()]) || [''])[0];
 
 /** Digits of the number token continuing after the caret. */
-const leadingNumber = (after) => (after.match(/^[0-9.]+/) || [''])[0];
+const leadingNumber = (after) => (after.match(LEADING[radix()]) || [''])[0];
 
 /**
- * A result rendered as something the buffer can legally hold: plain decimal
- * digits, no exponent. Returns null when the value cannot be written that way,
- * which is why continuing from a result is allowed to fail rather than inject
- * an "e" the tokenizer would choke on for the rest of the session.
+ * A result rendered as something the buffer can legally hold: plain digits in
+ * the current base, no exponent. Returns null when the value cannot be written
+ * that way, which is why continuing from a result is allowed to fail rather than
+ * inject an "e" the tokenizer would choke on for the rest of the session.
  */
 export function plainDecimal(n) {
+  // Hex results are exact integers, so the only thing that can go wrong is length.
+  if (typeof n === 'bigint') {
+    const s = (n < 0n ? '-' : '') + (n < 0n ? -n : n).toString(16).toUpperCase();
+    return s.length > MAX_LENGTH ? null : s;
+  }
+
   if (typeof n !== 'number' || !Number.isFinite(n)) return null;
   if (n === 0) return '0';
 
@@ -106,7 +129,7 @@ function parenInsert(before, forced) {
 /**
  * Apply a keypad command. Returns a new state; never mutates the input.
  * Commands:
- *   digit:<d> | zeros | dot | op:<+-*\/> | paren | parenforce
+ *   digit:<0-9A-F> | zeros | dot | op:<+-*\/> | paren | parenforce
  *   clear | back | equals | caret:<n>
  */
 export function apply(state, cmd) {
@@ -118,7 +141,7 @@ export function apply(state, cmd) {
   // here rather than trusted.
   if (kind === 'load') {
     const buf = cmd.slice('load:'.length);
-    if (buf.length > MAX_LENGTH || !/^[0-9.+\-*/^()]*$/.test(buf)) return state;
+    if (buf.length > MAX_LENGTH || !LEGAL_SRC[radix()].test(buf)) return state;
     return { buf, caret: buf.length, committed: false, result: null, error: null };
   }
 
@@ -145,10 +168,11 @@ export function apply(state, cmd) {
     if (state.buf === '' || state.committed) return state;
     const src = previewSource(state.buf);
     try {
-      const value = evaluate(parse(src));
+      const value = run(src);
       // Overflow still commits: the result line shows ∞ rather than nothing.
-      const error = Number.isFinite(value) ? null : 'overflow';
-      return { buf: src, caret: src.length, committed: true, result: value, error };
+      // A hex result is a BigInt and is exact by construction, so it never is one.
+      const finite = typeof value === 'bigint' || Number.isFinite(value);
+      return { buf: src, caret: src.length, committed: true, result: value, error: finite ? null : 'overflow' };
     } catch (e) {
       if (!isCalcError(e)) throw e;
       return { ...state, error: e.code };
@@ -160,6 +184,7 @@ export function apply(state, cmd) {
   const after = buf.slice(caret);
 
   if (kind === 'digit' || kind === 'zeros') {
+    if (kind === 'digit' && !LEGAL_DIGIT[radix()].test(arg)) return state;
     if (lastChar(before) === ')') before += '*';       // (2+3)4 -> implicit multiply
     const cur = trailingNumber(before);
     let text = kind === 'zeros' ? '00' : arg;
@@ -173,6 +198,8 @@ export function apply(state, cmd) {
   }
 
   if (kind === 'dot') {
+    // Hex mode is integer-only; there is no point to insert.
+    if (radix() === HEX) return state;
     if (lastChar(before) === ')') before += '*';
     // The number token spans the caret, so check both sides for an existing point.
     if ((trailingNumber(before) + leadingNumber(after)).includes('.')) return state;

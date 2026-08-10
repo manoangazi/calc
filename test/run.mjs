@@ -1,7 +1,12 @@
 /** Runs every suite. `node test/run.mjs` */
 import { spawnSync } from 'node:child_process';
 
-const suites = ['test/engine.test.mjs', 'test/fuzz.test.mjs'];
+const suites = [
+  'test/engine.test.mjs',
+  'test/hex.test.mjs',
+  'test/assets.test.mjs',
+  'test/fuzz.test.mjs',
+];
 let failed = false;
 
 for (const suite of suites) {

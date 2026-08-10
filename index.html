@@ -20,7 +20,14 @@
 <body>
 
 <header class="appbar">
-  <span class="icon disabled" aria-hidden="true">&#9776;</span>
+  <label class="radix">
+    <span class="sr-only">Number base</span>
+    <select id="radix">
+      <option value="10" selected>DEC</option>
+      <option value="16">HEX</option>
+    </select>
+    <span class="chev" aria-hidden="true">&#9662;</span>
+  </label>
   <span class="title">ManoCalc</span>
   <button type="button" class="icon-btn" data-act="history" aria-label="History" aria-expanded="false">&#8635;</button>
   <span class="icon disabled" aria-hidden="true">&#8942;</span>
@@ -38,6 +45,9 @@
 
   <div class="menu" role="menu" hidden>
     <button type="button" role="menuitem" data-act="copy">Copy result</button>
+    <!-- Hidden in hex, where results are exact integers and rounding has nothing
+         to act on. -->
+    <div class="dp-block">
     <p class="menu-label" id="dp-label">Decimal places</p>
     <div class="dp-row" role="group" aria-labelledby="dp-label">
       <button type="button" data-act="dp" data-dp="auto" aria-pressed="true">Auto</button>
@@ -47,10 +57,11 @@
       <button type="button" data-act="dp" data-dp="4" aria-pressed="false">4</button>
       <button type="button" data-act="dp" data-dp="5" aria-pressed="false">5</button>
     </div>
+    </div>
   </div>
 </main>
 
-<div class="keypad" role="group" aria-label="Calculator keypad">
+<div class="keypad dec" role="group" aria-label="Calculator keypad">
   <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">C</button>
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
@@ -74,6 +85,41 @@
   <button type="button" class="key" data-cmd="digit:0">0</button>
   <button type="button" class="key" data-cmd="zeros">00</button>
   <button type="button" class="key" data-cmd="dot" aria-label="Decimal point">.</button>
+  <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
+</div>
+
+<!-- Hex lays the digits out as a nibble table, 0 through F in reading order,
+     rather than in phone order. Clear is "AC" here so it cannot be misread as
+     the hex digit C sitting two keys away. -->
+<div class="keypad hex" role="group" aria-label="Hexadecimal keypad" hidden>
+  <button type="button" class="key" data-cmd="digit:0">0</button>
+  <button type="button" class="key" data-cmd="digit:1">1</button>
+  <button type="button" class="key" data-cmd="digit:2">2</button>
+  <button type="button" class="key" data-cmd="digit:3">3</button>
+  <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
+
+  <button type="button" class="key" data-cmd="digit:4">4</button>
+  <button type="button" class="key" data-cmd="digit:5">5</button>
+  <button type="button" class="key" data-cmd="digit:6">6</button>
+  <button type="button" class="key" data-cmd="digit:7">7</button>
+  <button type="button" class="key op" data-cmd="op:*" aria-label="Multiply">&times;</button>
+
+  <button type="button" class="key" data-cmd="digit:8">8</button>
+  <button type="button" class="key" data-cmd="digit:9">9</button>
+  <button type="button" class="key" data-cmd="digit:A">A</button>
+  <button type="button" class="key" data-cmd="digit:B">B</button>
+  <button type="button" class="key op" data-cmd="op:-" aria-label="Minus">&minus;</button>
+
+  <button type="button" class="key" data-cmd="digit:C">C</button>
+  <button type="button" class="key" data-cmd="digit:D">D</button>
+  <button type="button" class="key" data-cmd="digit:E">E</button>
+  <button type="button" class="key" data-cmd="digit:F">F</button>
+  <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
+
+  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">AC</button>
+  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
+  <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
+  <button type="button" class="key" data-cmd="zeros">00</button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 

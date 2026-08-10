@@ -6,30 +6,65 @@
  * storage: localStorage is editable by anything that can run script on this
  * origin, so a stored expression is treated as untrusted input, not as data we
  * wrote and can trust.
+ *
+ * A hex entry carries `radix: 16` and holds its value as a decimal *string*.
+ * Both matter: without the radix, "FF+FF" is ambiguous once the mode has been
+ * switched back, and BigInt cannot be serialised — JSON.stringify throws on it
+ * outright, which would have silently killed persistence for the whole tape.
  */
+import { DEC, HEX } from './tokenizer.js';
+
 export const MAX_ENTRIES = 50;
 export const STORAGE_KEY = 'manocalc.history';
 
-const LEGAL_SRC = /^[0-9.+\-*/^()]+$/;
+const LEGAL_SRC = { [DEC]: /^[0-9.+\-*/^()]+$/, [HEX]: /^[0-9A-F+\-*/^()]+$/ };
+const LEGAL_BIGINT = /^-?[0-9]+$/;
 const MAX_SRC = 120;
+const MAX_VALUE_DIGITS = 400;
+
+/** The radix an entry claims, normalised. Entries written before hex existed have none. */
+export const entryRadix = (entry) => (entry && entry.radix === HEX ? HEX : DEC);
 
 export function isValidEntry(entry) {
-  return (
-    !!entry &&
-    typeof entry.src === 'string' &&
-    entry.src.length > 0 &&
-    entry.src.length <= MAX_SRC &&
-    LEGAL_SRC.test(entry.src) &&
-    typeof entry.value === 'number' &&
-    Number.isFinite(entry.value)
-  );
+  if (!entry || typeof entry.src !== 'string') return false;
+
+  const radix = entryRadix(entry);
+  if (entry.src.length === 0 || entry.src.length > MAX_SRC) return false;
+  if (!LEGAL_SRC[radix].test(entry.src)) return false;
+
+  if (radix === HEX) {
+    return (
+      typeof entry.value === 'string' &&
+      entry.value.length > 0 &&
+      entry.value.length <= MAX_VALUE_DIGITS &&
+      LEGAL_BIGINT.test(entry.value)
+    );
+  }
+  return typeof entry.value === 'number' && Number.isFinite(entry.value);
 }
 
-/** Newest first, consecutive repeats collapsed, capped. */
+/** A live entry (BigInt value in hex) as something JSON can hold. */
+export function toStored(entry) {
+  if (typeof entry.value !== 'bigint') return { src: entry.src, value: entry.value };
+  return { src: entry.src, value: entry.value.toString(10), radix: HEX };
+}
+
+/** The stored shape back as something formatResult can render. */
+export function fromStored(entry) {
+  if (entryRadix(entry) !== HEX) return { src: entry.src, value: entry.value, radix: DEC };
+  return { src: entry.src, value: BigInt(entry.value), radix: HEX };
+}
+
+/**
+ * Newest first, consecutive repeats collapsed, capped. The repeat check includes
+ * the radix, because "FF" in hex and "FF" in decimal are not the same entry.
+ */
 export function addEntry(list, entry) {
-  if (!isValidEntry(entry)) return list;
-  const rest = list[0] && list[0].src === entry.src ? list.slice(1) : list;
-  return [entry, ...rest].slice(0, MAX_ENTRIES);
+  const stored = toStored(entry);
+  if (!isValidEntry(stored)) return list;
+  const head = list[0];
+  const dup = head && head.src === stored.src && entryRadix(head) === entryRadix(stored);
+  return [stored, ...(dup ? list.slice(1) : list)].slice(0, MAX_ENTRIES);
 }
 
 export function parseHistory(raw) {

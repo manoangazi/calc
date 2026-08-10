@@ -1,17 +1,22 @@
 import { initialState, apply, preview, openDepth } from './model.js';
-import { formatExpression, formatResult, config, setDecimals } from './format.js';
+import { formatExpression, formatResult, config, setDecimals, setRadix } from './format.js';
 import { ERRORS } from './errors.js';
-import { addEntry, loadHistory, saveHistory } from './history.js';
+import { addEntry, loadHistory, saveHistory, fromStored } from './history.js';
+import { convertBuffer, DEC, HEX } from './radix.js';
 
 const card = document.querySelector('.display');
 const exprEl = document.getElementById('expression');
 const resultEl = document.getElementById('result');
 const hintEl = document.getElementById('hint');
-const keypad = document.querySelector('.keypad');
+const keypads = [...document.querySelectorAll('.keypad')];
 const utility = document.querySelector('.utility');
 const menuBtn = document.querySelector('[data-act="menu"]');
 const menu = document.querySelector('.menu');
-const parenDepthEl = document.querySelector('[data-cmd="paren"] .depth');
+const dpBlock = document.querySelector('.dp-block');
+const radixSel = document.getElementById('radix');
+// One per keypad: only the visible one is on screen, but both are kept in step
+// so switching mode never reveals a stale bracket count.
+const parenDepthEls = [...document.querySelectorAll('[data-cmd="paren"] .depth')];
 const historyBtn = document.querySelector('[data-act="history"]');
 const historyPanel = document.querySelector('.history');
 const tapeEl = document.querySelector('.tape');
@@ -83,7 +88,7 @@ function render() {
   card.classList.toggle('error', !!state.error && state.error !== 'overflow');
 
   const depth = openDepth(state.buf);
-  parenDepthEl.textContent = depth > 0 ? String(depth) : '';
+  for (const el of parenDepthEls) el.textContent = depth > 0 ? String(depth) : '';
 
   fitExpression();
 }
@@ -178,7 +183,7 @@ function endPress() {
   timer = null;
 }
 
-for (const root of [keypad, utility]) {
+for (const root of [...keypads, utility]) {
   root.addEventListener('pointerdown', startPress);
   root.addEventListener('pointerup', endPress);
   root.addEventListener('pointercancel', endPress);
@@ -200,17 +205,20 @@ function renderTape() {
   tapeEl.textContent = '';
   tapeEmptyEl.hidden = history.length > 0;
 
-  for (const entry of history) {
+  for (const stored of history) {
+    const entry = fromStored(stored);
     const li = document.createElement('li');
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.dataset.src = entry.src;
+    btn.dataset.radix = String(entry.radix);
 
     const src = document.createElement('span');
     src.className = 'tape-src';
-    // Re-rendered from the raw source, so the decimal-separator setting and
-    // digit grouping apply to old entries too.
-    for (const part of formatExpression(entry.src)) {
+    // Re-rendered from the raw source, so digit grouping and the decimal-places
+    // setting apply to old entries too. Each entry renders in the base it was
+    // calculated in, not the base currently selected.
+    for (const part of formatExpression(entry.src, entry.radix)) {
       const span = document.createElement('span');
       span.className = part.kind;
       span.textContent = part.text;
@@ -248,6 +256,11 @@ historyPanel.addEventListener('click', (e) => {
   }
   const entry = e.target.closest('[data-src]');
   if (!entry) return;
+  // Recalling switches the mode to the entry's own base rather than
+  // reinterpreting its digits in whichever base happens to be selected — the
+  // reducer would reject "FF" in decimal and silently drop the recall.
+  const radix = Number(entry.dataset.radix) === HEX ? HEX : DEC;
+  if (radix !== config.radix) applyRadix(radix, { convert: false });
   run(`load:${entry.dataset.src}`);
   openHistory(false);
 });
@@ -332,6 +345,43 @@ function applyDecimals(value) {
   render();
 }
 
+/**
+ * Switching base rewrites every number literal in the buffer, not just the
+ * result, so a half-typed calculation survives the switch — and so typing a
+ * number and flipping the control is all a base conversion takes.
+ *
+ * `convert` is off when the mode is following something that already carries its
+ * own digits, such as recalling a hex entry from the tape.
+ */
+function applyRadix(value, { convert = true } = {}) {
+  const from = config.radix;
+  const to = setRadix(value);
+
+  if (convert && from !== to) {
+    const { buf, lossy, tooLong } = convertBuffer(state.buf, from, to);
+    if (tooLong) {
+      // Hex is denser than decimal, so a full buffer can fail to fit. Refusing
+      // the switch keeps the expression; going ahead would truncate it.
+      setRadix(from);
+      radixSel.value = String(from);
+      flash('Too long to convert');
+      return;
+    }
+    // `committed` cannot survive the switch: the stored result belongs to the
+    // old base. Dropping it re-evaluates the converted buffer as a live preview.
+    state = { ...initialState(), buf, caret: buf.length };
+    if (lossy) flash('Fractions dropped');
+  }
+
+  radixSel.value = String(to);
+  for (const pad of keypads) pad.hidden = pad.classList.contains('hex') !== (to === HEX);
+  dpBlock.hidden = to === HEX;
+  renderTape();
+  render();
+}
+
+radixSel.addEventListener('change', () => applyRadix(radixSel.value));
+
 menu.addEventListener('click', (e) => {
   const item = e.target.closest('[data-act]');
   if (!item) return;
@@ -366,6 +416,9 @@ window.addEventListener('keydown', (e) => {
 
   let cmd = null;
   if (e.key >= '0' && e.key <= '9') cmd = `digit:${e.key}`;
+  // a-f are digits only in hex. In decimal they stay free for KEYMAP, where x
+  // already means multiply.
+  else if (config.radix === HEX && /^[a-f]$/i.test(e.key)) cmd = `digit:${e.key.toUpperCase()}`;
   else if (e.key === 'ArrowLeft') cmd = `caret:${state.caret - 1}`;
   else if (e.key === 'ArrowRight') cmd = `caret:${state.caret + 1}`;
   else if (e.key === 'Home') cmd = 'caret:0';
@@ -395,3 +448,7 @@ try {
   storedDecimals = localStorage.getItem(DP_KEY);
 } catch { /* private mode */ }
 applyDecimals(storedDecimals);
+
+/* The base is deliberately not persisted — the app always opens in decimal, so
+   a keypad full of letters is never the first thing you meet. */
+applyRadix(DEC, { convert: false });

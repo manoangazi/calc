@@ -17,6 +17,7 @@ export const ERRORS = {
   divzero:  { display: '—', hint: 'Cannot divide by zero' },
   undef:    { display: '—', hint: 'Not a real number' },
   overflow: { display: '∞', hint: 'Result too large to show' },
+  toobig:   { display: '—', hint: 'Number too large' },
 };
 
 export const isCalcError = (e) => e instanceof CalcError && e.code in ERRORS;

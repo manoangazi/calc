@@ -5,19 +5,32 @@ export const OP = 'op';
 export const LPAREN = 'lparen';
 export const RPAREN = 'rparen';
 
-const DIGIT = /[0-9]/;
+export const DEC = 10;
+export const HEX = 16;
+
 const OPS = '+-*/^';
 
-export function tokenize(src) {
+/**
+ * What counts as part of a number token, per radix. Hex has no fractional form —
+ * hex mode is integer-only — so the point is not a number character there and
+ * falls through to the "unexpected character" arm.
+ */
+const NUM_CHAR = { [DEC]: /[0-9.]/, [HEX]: /[0-9A-F]/ };
+const WELL_FORMED = { [DEC]: /^(\d+(\.\d*)?|\.\d+)$/, [HEX]: /^[0-9A-F]+$/ };
+
+export function tokenize(src, radix = DEC) {
+  const isNumChar = NUM_CHAR[radix] ?? NUM_CHAR[DEC];
+  const wellFormed = WELL_FORMED[radix] ?? WELL_FORMED[DEC];
+
   const tokens = [];
   let i = 0;
   while (i < src.length) {
     const c = src[i];
-    if (DIGIT.test(c) || c === '.') {
+    if (isNumChar.test(c)) {
       const start = i;
-      while (i < src.length && (DIGIT.test(src[i]) || src[i] === '.')) i++;
+      while (i < src.length && isNumChar.test(src[i])) i++;
       const value = src.slice(start, i);
-      if (!/^(\d+(\.\d*)?|\.\d+)$/.test(value)) {
+      if (!wellFormed.test(value)) {
         throw new CalcError('syntax', `malformed number "${value}"`);
       }
       tokens.push({ type: NUM, value, start, end: i });

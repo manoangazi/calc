@@ -342,6 +342,78 @@ Listed so they are decisions rather than scope creep. None are required for
   magnitude of speed, to fix a class of bug that has not appeared in 400k
   fuzzed expressions.
 
+### Stage 7 — Hex mode · done
+
+A `DEC`/`HEX` control in the app bar, hex arithmetic, and DEC↔HEX conversion.
+
+**BigInt, not doubles.** Hex mode is integer-only, so `evaluateHex` in `eval.js`
+is a sibling of `evaluate` working on `BigInt`. The reason is exactness: a
+programmer calculator that cannot hold `FFFFFFFFFFFFFFFF` is not much use, and
+doubles go inexact above 2^53 — only 14 hex digits. It also makes truncating
+division fall out for free, since `BigInt` division already truncates toward
+zero.
+
+**The hazard BigInt adds.** Floats overflow to `Infinity` and stop. `BigInt` has
+no ceiling, so `2^FFFFFFFF` would allocate until the tab dies rather than
+returning a value — a hang, not an error. Every result is therefore size-checked
+against a 1024-bit cap, and `^` is checked *before* it is computed:
+
+```
+a^b needs between (bits(a)-1)*b+1 and bits(a)*b bits.
+```
+
+The lower bound is what gets tested, so only what is *certainly* too large is
+refused; anything that slips past is at most twice the cap and cheap to compute,
+and the result check then rejects it on its real size. Testing the upper bound
+instead was the first attempt and was wrong — for base 2 it overestimates by 2×
+and refused values that fit comfortably.
+
+**A negative exponent truncates to 0** rather than erroring, for the same reason
+`1/2` is `0`: the mode holds integers, and `1/(a^n)` is not one.
+
+**Switching converts the whole buffer**, not just the result — `255+16` becomes
+`FF+10`. That keeps a half-typed calculation alive across the switch, and makes
+the converter use case (type a number, flip the control) fall out of the same
+code path. DEC→HEX truncates fractions, which is lossy, so the hint line says
+"Fractions dropped" rather than letting `12.75` quietly become `C`. A conversion
+that would outgrow `MAX_LENGTH` is refused outright instead of truncating the
+expression — hex is denser than decimal, so a full buffer can fail to fit.
+
+**Signed magnitude, not two's complement.** `5-A` is `-5`. Two's complement is
+what a programmer calculator usually shows, but it forces a word-size setting
+(8/16/32/64) and a second control to pick it; signed magnitude matches how the
+expression buffer already handles a minus.
+
+**The keypad is a nibble table.** Five columns, `0`–`F` in reading order, rather
+than the phone digit order used in decimal:
+
+```
+0   1   2   3   /
+4   5   6   7   ×
+8   9   A   B   −
+C   D   E   F   +
+AC  ( ) ^   00  =
+```
+
+This was chosen over a 5×5 grid that kept phone order with the letters in a
+column (`F` ended up stranded, and it read as arbitrary) and over a six-across
+letter strip above an unchanged keypad. The strip is the smaller change and the
+better answer if decimal is the common case; the nibble table wins when hex is.
+The cost is that flipping the control relocates every digit.
+
+Clear reads `AC` in hex. With a hex `C` two keys away, distinguishing them by
+colour alone was a real misread risk on a phone.
+
+**Storage.** A hex tape entry carries `radix: 16` and holds its value as a
+decimal *string*. Both are load-bearing: without the radix, `FF+FF` is ambiguous
+once the mode has switched back, and `JSON.stringify` throws outright on a
+`BigInt` — a throw `saveHistory` already swallows, which would have silently
+killed persistence for the entire tape rather than just the hex entries. Entries
+written before hex existed have no `radix` and read as decimal.
+
+**Not persisted.** The app always opens in decimal, so a keypad full of letters
+is never the first thing you meet.
+
 ---
 
 ## 6. Repo and deployment

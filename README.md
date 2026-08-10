@@ -18,6 +18,33 @@ Results show as many decimal places as they need, or a fixed 1–5 — pick from
 `⋯` menu. Rounding is display-only, so changing it re-renders past history
 entries at the new setting rather than having thrown precision away.
 
+## Hex
+
+The `DEC`/`HEX` control in the app bar switches base. Switching rewrites every
+number literal in the expression, not just the result, so a half-typed
+calculation survives it — and so typing `255` and switching is all a base
+conversion takes.
+
+Hex is **integer-only**, and runs on `BigInt` rather than doubles. That is what
+makes `FFFFFFFFFFFFFFFF` come back exactly instead of approximately: doubles go
+inexact above 2^53, which is only 14 hex digits. Consequences worth knowing:
+
+- **Division truncates toward zero.** `10/3` is `5`, not `5.55…`. There is no
+  point key in hex.
+- **Switching DEC → HEX drops any fraction.** `12.75` becomes `C`, and the hint
+  line says so rather than letting it happen quietly.
+- **Negatives are signed magnitude**, not two's complement: `5-A` is `-5`. There
+  is no word size to choose, and no `FFFFFFFB`.
+- **`^` is bounded.** Floats overflow to `∞` and stop; BigInt has no ceiling, so
+  a large exponent is refused before it is computed rather than allocating until
+  the tab dies.
+
+The keypad becomes a nibble table in hex — `0`–`F` in reading order across five
+columns. Clear reads `AC` there so it cannot be misread as the hex digit `C` two
+keys away.
+
+The base is deliberately not persisted; the app always opens in decimal.
+
 ## Run locally
 
 Service workers and ES modules need a real origin, so `file://` will not work.
@@ -45,10 +72,16 @@ the network and rewrites that entry; a plain reload may not.
 node test/run.mjs
 ```
 
-`test/engine.test.mjs` is the assertion suite; `test/fuzz.test.mjs` throws 100k
-random expressions and 20k random keypad sequences at the engine and asserts that
-nothing but a `CalcError` ever escapes. Both are dependency-free. The fuzzer is
-seeded — reproduce a failure with `FUZZ_SEED=<seed> node test/fuzz.test.mjs`.
+`test/engine.test.mjs` and `test/hex.test.mjs` are the assertion suites.
+`test/fuzz.test.mjs` throws 100k random expressions and 20k random keypad
+sequences at each engine and asserts that nothing but a `CalcError` ever escapes;
+its hex pass also asserts no iteration runs slow, which is how an unbounded
+BigInt would show up. `test/assets.test.mjs` checks that every module in `src/`
+is in the service worker's precache list — miss one and the app works perfectly
+right up until the device goes offline.
+
+All are dependency-free. The fuzzer is seeded — reproduce a failure with
+`FUZZ_SEED=<seed> node test/fuzz.test.mjs`.
 
 ## Deploy
 
@@ -82,7 +115,8 @@ node tools/make-icons.mjs
 | `app.css` | Layout, safe-area insets, tap targets |
 | `src/tokenizer.js` | String → token stream |
 | `src/parser.js` | Tokens → AST, recursive descent |
-| `src/eval.js` | AST → number |
+| `src/eval.js` | AST → number (doubles), and AST → BigInt for hex |
+| `src/radix.js` | Rewriting the expression buffer between bases |
 | `src/format.js` | Number → display string; expression → tinted spans |
 | `src/model.js` | Expression buffer and keypad command reducer |
 | `src/ui.js` | DOM binding and event delegation |
@@ -118,6 +152,7 @@ Usable from a hardware keyboard when opened on a desktop.
 | Key | Action |
 | --- | --- |
 | `0`–`9`, `.`, `,` | Digits and decimal point (`,` also types a `.`, for numeric keypads) |
+| `a`–`f` | Hex digits, in hex mode only — in decimal `x` still means multiply |
 | `+` `-` `*` `x` `/` `^` | Operators |
 | `(` `)` | Explicit brackets — unlike the `( )` key, these do not guess |
 | `←` `→` `Home` `End` | Move the caret |

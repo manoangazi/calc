@@ -1,4 +1,4 @@
-import { NUM, OP, LPAREN, RPAREN, tokenize } from './tokenizer.js';
+import { NUM, OP, LPAREN, RPAREN, DEC, tokenize } from './tokenizer.js';
 import { CalcError } from './errors.js';
 
 /**
@@ -7,8 +7,8 @@ import { CalcError } from './errors.js';
  */
 export const MAX_DEPTH = 64;
 
-export function parse(src) {
-  const tokens = tokenize(src);
+export function parse(src, radix = DEC) {
+  const tokens = tokenize(src, radix);
   let i = 0;
   let depth = 0;
 
@@ -71,9 +71,11 @@ export function parse(src) {
   function primary() {
     const t = peek();
     if (!t) throw new CalcError('syntax', 'unexpected end of expression');
+    // The literal is kept as text, not converted here: the same AST is read by
+    // the float evaluator and the BigInt one, and only they know the radix.
     if (t.type === NUM) {
       i++;
-      return { type: 'num', value: Number(t.value) };
+      return { type: 'num', text: t.value };
     }
     if (t.type === LPAREN) {
       i++;
