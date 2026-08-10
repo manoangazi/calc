@@ -136,6 +136,12 @@ The converted line under the result carries **decimal hours** — the number a
 timesheet or an invoice wants, and the one thing `H:MM:SS` is bad at. The
 decimal-places setting governs that line.
 
+The keypad is its own layout rather than the decimal one with substitutions:
+`h m s` share the top row with `/`, the operators run down the fourth column, and
+the bottom row is `0 00 ( ) =`. **There is no `AC` key in `TIM`** — long-press
+`⌫` to clear, or `Esc` on a hardware keyboard. Dropping it is what makes the grid
+come out at exactly twenty keys with nothing double-width and no gap.
+
 Only pure integer arithmetic survives a switch into or out of `TIM`, since it
 means the same thing in every mode. Anything with a marker or a decimal point
 would change meaning — `20.45` is twenty-point-four-five in `DEC` and 20 m 45 s

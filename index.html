@@ -154,16 +154,23 @@
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 
-<!-- TIM is the decimal keypad with three substitutions and nothing else moved, so
-     muscle memory survives the switch. ^ becomes h (a duration raised to a power
-     is not a quantity), 00 becomes m (a seconds key earns the slot far more
-     here), and . becomes s (redundant once m exists). The colon spelling —
-     1:20.45 — stays legal input for a hardware keyboard and for history recall;
-     it is simply not what the on-screen keys emit. -->
+<!-- TIM gives up two keys the mode cannot use — ^ (a duration raised to a power is
+     not a quantity) and . (redundant once s exists) — which frees the top row for
+     h, m and s in descending order, the order they are typed in. That in turn
+     lets the four operators stack in one column in / × − + order, which the
+     decimal pad cannot do because ^ holds the top slot there.
+
+     There is no AC key. Backspace already long-presses to clear, and the freed
+     slot is what makes the grid come out at exactly 20 keys with no double-width
+     key and no gap. It does mean the gesture is the only route to clear here
+     rather than a shortcut for one.
+
+     The colon spelling — 1:20.45 — stays legal input for a hardware keyboard and
+     for history recall; it is simply not what the keys emit. -->
 <div class="keypad tim" role="group" aria-label="Time keypad" hidden>
-  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">AC</button>
-  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key unit" data-cmd="unit:h" aria-label="Hours">h</button>
+  <button type="button" class="key unit" data-cmd="unit:m" aria-label="Minutes">m</button>
+  <button type="button" class="key unit" data-cmd="unit:s" aria-label="Seconds">s</button>
   <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
 
   <button type="button" class="key" data-cmd="digit:7">7</button>
@@ -182,8 +189,8 @@
   <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
 
   <button type="button" class="key" data-cmd="digit:0">0</button>
-  <button type="button" class="key unit" data-cmd="unit:m" aria-label="Minutes">m</button>
-  <button type="button" class="key unit" data-cmd="unit:s" aria-label="Seconds">s</button>
+  <button type="button" class="key" data-cmd="zeros">00</button>
+  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 

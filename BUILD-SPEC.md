@@ -624,7 +624,34 @@ inherits hold-to-copy and the decimal-places setting for free.
 and `s` sit at the x-height, so at a shared font-size `h` drew 18px of ink against
 their 12px and read half again as large. Measured with canvas
 `actualBoundingBox` and set to the 20px the digits and operators already use —
-the same method, and the same trap, as the operator sizing in Stage 5.
+the same method, and the same trap, as the operator sizing in Stage 5. The rules
+key off `data-cmd`, not position, which is why the keys could later be moved
+around the grid without touching the CSS.
+
+**The TIM pad is its own layout, and it has no `AC`.** It began as the decimal
+grid with three substitutions, on the theory that muscle memory should survive the
+switch — but the decimal grid is shaped around `^` holding a top slot, and TIM has
+no use for `^`. Freeing it, and dropping `AC`, leaves:
+
+```
+h   m   s   /
+7   8   9   ×
+4   5   6   −
+1   2   3   +
+0   00  ( ) =
+```
+
+Which is exactly 20 keys in 20 cells: no double-width key, no gap, the three unit
+markers together in the descending order they are typed in, and all four operators
+in one column in `/ × − +` order — none of which the decimal pad can do. `00`
+earns its slot back here because `2h00m` and `1h05m` are common shapes.
+
+Clear survives as the long-press on `⌫` (`data-long="clear"`), which every pad
+already carried, plus `Esc` on a hardware keyboard. The cost is real and worth
+naming: TIM is the one mode where that gesture is the *only* route to clear rather
+than a shortcut for a visible key, so it is undiscoverable to anyone who has not
+been told. It was accepted because the alternative was a 19-in-20 grid with an
+arbitrary wide key.
 
 ---
 
