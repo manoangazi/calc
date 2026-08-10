@@ -138,7 +138,12 @@ export function formatResult(n, radix = config.radix) {
   return groupDecimalString(toPlainString(rounded));
 }
 
-const OP_GLYPH = { '+': '+', '-': '−', '*': '×', '/': '÷', '^': '^', '√': '√' };
+const OP_GLYPH = {
+  '+': '+', '-': '−', '*': '×', '/': '÷', '^': '^', '√': '√',
+  // Hex only. Symbols rather than the words AND/OR/XOR, so they sit in the
+  // expression the way × and ÷ already do instead of breaking it into prose.
+  '&': '&', '⊻': '⊻', '|': '|',
+};
 
 /**
  * One part per buffer character, each carrying its buffer index `i`, plus

@@ -14,7 +14,7 @@ export const TIM = 60;
 /* `√` is here rather than in a function/identifier arm because it is a prefix
    operator, not a call: there are no names in this grammar and no argument list
    to parse. It tokenizes as an OP and the parser gives it unary precedence. */
-const OPS = '+-*/^√';
+const OPS = '+-*/^√&⊻|';
 
 /**
  * What counts as part of a number token, per radix. Hex has no fractional form —

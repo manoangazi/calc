@@ -29,6 +29,11 @@ export function evaluate(node) {
           if (Number.isNaN(r)) throw new CalcError('undef', 'undefined power');
           return r;
         }
+        // Parseable in any radix, evaluable only in hex. JS would happily
+        // coerce these through a 32-bit int and hand back a wrong answer for
+        // anything larger or fractional, so they are refused outright.
+        case '&': case '⊻': case '|':
+          throw new CalcError('bitdec', 'bitwise needs hex');
       }
       throw new CalcError('syntax', `unknown operator "${node.op}"`);
     }
@@ -111,6 +116,7 @@ export function evaluateTime(node) {
       return scalar(Math.sqrt(v.seconds));
     }
     case 'binary':
+      if ('&⊻|'.includes(node.op)) throw new CalcError('bitdec', 'bitwise needs hex');
       return timeOp(node.op, evaluateTime(node.left), evaluateTime(node.right));
   }
   throw new CalcError('syntax', `unknown node "${node.type}"`);
@@ -173,6 +179,20 @@ export function evaluateHex(node) {
         case '/':
           if (b === 0n) throw new CalcError('divzero', 'divide by zero');
           return a / b;
+        /*
+         * Both operands must be non-negative. BigInt's bitwise operators model
+         * an infinite two's-complement register, so `-1n & 0xFFn` is 255n — but
+         * this mode is signed magnitude with no word size, deliberately: there
+         * is no FFFFFFFB here, only -5. Returning BigInt's answer would be
+         * quietly asserting a two's-complement model the rest of the mode does
+         * not have, so a negative operand is refused instead.
+         */
+        case '&': case '⊻': case '|': {
+          if (a < 0n || b < 0n) throw new CalcError('bitneg', 'bitwise on a negative');
+          if (node.op === '&') return a & b;
+          if (node.op === '|') return a | b;
+          return a ^ b;
+        }
         case '^': {
           // A negative exponent truncates to 0 for the same reason 1/2 does:
           // this mode holds integers, and 1/(a^n) is not one.

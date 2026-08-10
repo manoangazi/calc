@@ -18,6 +18,44 @@ export function parse(src, radix = DEC) {
     return !!t && t.type === type && (value === undefined || t.value === value);
   };
 
+  /*
+   * The bitwise level, above + and −. Order and relative precedence are C's —
+   * `&` tighter than `⊻` tighter than `|`, all three looser than arithmetic — so
+   * `FF&0F+1` groups as `FF&(0F+1)`. That is what a C programmer expects, and
+   * they are the only people who will type these.
+   *
+   * They parse in every radix but evaluate only in hex; the other two evaluators
+   * refuse the node. Keeping the grammar one shape is worth more than making the
+   * parser radix-aware, and `LEGAL_SRC` already stops the characters reaching a
+   * decimal buffer.
+   */
+  function bitOr() {
+    let node = bitXor();
+    while (at(OP, '|')) {
+      i++;
+      node = { type: 'binary', op: '|', left: node, right: bitXor() };
+    }
+    return node;
+  }
+
+  function bitXor() {
+    let node = bitAnd();
+    while (at(OP, '⊻')) {
+      i++;
+      node = { type: 'binary', op: '⊻', left: node, right: bitAnd() };
+    }
+    return node;
+  }
+
+  function bitAnd() {
+    let node = expr();
+    while (at(OP, '&')) {
+      i++;
+      node = { type: 'binary', op: '&', left: node, right: expr() };
+    }
+    return node;
+  }
+
   function expr() {
     let node = term();
     while (at(OP, '+') || at(OP, '-')) {
@@ -92,7 +130,7 @@ export function parse(src, radix = DEC) {
     if (t.type === LPAREN) {
       i++;
       if (++depth > MAX_DEPTH) throw new CalcError('depth', 'too deeply nested');
-      const node = expr();
+      const node = bitOr();
       if (!at(RPAREN)) throw new CalcError('syntax', 'missing ")"');
       i++;
       depth--;
@@ -102,7 +140,7 @@ export function parse(src, radix = DEC) {
   }
 
   if (tokens.length === 0) throw new CalcError('syntax', 'empty expression');
-  const node = expr();
+  const node = bitOr();
   if (i < tokens.length) throw new CalcError('syntax', `unexpected "${tokens[i].value}"`);
   return node;
 }

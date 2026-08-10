@@ -168,6 +168,48 @@ eq(hex('√' + '1' + '0'.repeat(32)), 1n << 64n, 'exact root far above 2^53');
 eq(hex('√(FFFFFFFFFFFFFFFF*FFFFFFFFFFFFFFFF)'), 0xFFFFFFFFFFFFFFFFn, 'root undoes a 64-bit square exactly');
 eq(code(() => hex('√-4')), 'undef', 'root of a negative is refused');
 
+// ---- bitwise ----------------------------------------------------------------
+
+eq(hex('FF&0F'), 0x0Fn, 'AND masks');
+eq(hex('F0|0F'), 0xFFn, 'OR sets');
+eq(hex('FF⊻F0'), 0x0Fn, 'XOR toggles');
+eq(hex('FF⊻FF'), 0n, 'XOR with itself is zero');
+eq(hex('0&FF'), 0n, 'AND with zero');
+eq(hex('0|FF'), 0xFFn, 'OR with zero');
+
+/* Exact well past 2^53, which is the whole reason hex is BigInt. */
+eq(hex('FFFFFFFFFFFFFFFF&FFFFFFFF'), 0xFFFFFFFFn, 'AND across 64 bits stays exact');
+eq(hex('FFFFFFFFFFFFFFFF⊻FFFFFFFFFFFFFFFF'), 0n, 'XOR across 64 bits');
+
+/* C's precedence, because C programmers are the only people who will type
+   these: & tighter than XOR tighter than |, all three looser than + and -. */
+eq(hex('FF&0F+1'), 0x10n, 'bitwise binds looser than +');
+/* Both of these discriminate: flat left-to-right would give a different
+   answer, so they fail if the precedence ever collapses. */
+eq(hex('F0|0F&00'), 0xF0n, '& binds tighter than | (flat would give 0)');
+eq(hex('1|1⊻1'), 0x1n, 'XOR binds tighter than | (flat would give 0)');
+eq(hex('(FF&0F)+1'), 0x10n, 'brackets agree with the precedence here');
+eq(hex('F0|0F&F0'), 0xF0n, '& binds tighter than |');
+eq(hex('(F0|0F)&F0'), 0xF0n, 'and brackets can say otherwise');
+
+/* Signed magnitude, not two's complement — there is no word size here, so there
+   is no -1 = FFFF…. BigInt would happily return 255n for -1 & FF, which would be
+   asserting a model this mode does not have. Refused instead. */
+eq(code(() => hex('-1&FF')), 'bitneg', 'a negative operand is refused, not two-complemented');
+eq(code(() => hex('FF&-1')), 'bitneg', 'on either side');
+eq(code(() => hex('(5-A)&FF')), 'bitneg', 'including one that only goes negative on evaluation');
+
+/* Parseable everywhere, evaluable only in hex. */
+eq(code(() => evaluate(parse('12&10'))), 'bitdec', 'bitwise in decimal is refused');
+
+// The keypad and the tape both have to accept the characters.
+setRadix(HEX);
+// 'FF&F', not 'FF&0F': a lone leading zero is replaced by the next digit, which
+// is the reducer's existing rule in every base and costs nothing but the padding.
+eq(press(['digit:F','digit:F','op:&','digit:0','digit:F']).buf, 'FF&F', 'typed on the keypad');
+eq(press(['digit:F','op:&','op:|']).buf, 'F|', 'one bitwise operator corrects another');
+setRadix(DEC);
+
 if (failures.length) {
   console.error(`${failures.length} failed, ${pass} passed\n`);
   for (const f of failures) console.error(`  ✗ ${f}\n`);

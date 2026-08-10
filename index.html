@@ -128,7 +128,13 @@
 </div>
 
 <!-- Hex lays the digits out as a nibble table, 0 through F in reading order,
-     rather than in phone order. -->
+     rather than in phone order.
+
+     The last row is bitwise rather than arithmetic, because that is what hex is
+     for. It cost √ (integer roots are a curiosity), ^ (exponentiation is rare in
+     hex, and worse, `^` means XOR in every language a hex user knows — leaving it
+     as a power was a standing trap) and 00. Both still work from a keyboard.
+     Shown in C's precedence order, tightest first: & then ⊻ then |. -->
 <div class="keypad hex" role="group" aria-label="Hexadecimal keypad" hidden>
   <button type="button" class="key" data-cmd="digit:0">0</button>
   <button type="button" class="key" data-cmd="digit:1">1</button>
@@ -155,9 +161,9 @@
   <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
 
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
-  <button type="button" class="key fn" data-cmd="sqrt" aria-label="Square root">&radic;</button>
-  <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
-  <button type="button" class="key" data-cmd="zeros">00</button>
+  <button type="button" class="key op" data-cmd="op:&amp;" aria-label="Bitwise AND">&amp;</button>
+  <button type="button" class="key op" data-cmd="op:&#8891;" aria-label="Bitwise XOR">&#8891;</button>
+  <button type="button" class="key op" data-cmd="op:|" aria-label="Bitwise OR">|</button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 

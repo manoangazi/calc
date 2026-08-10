@@ -40,6 +40,16 @@ inexact above 2^53, which is only 14 hex digits. Consequences worth knowing:
 
 - **Division truncates toward zero.** `10/3` is `5`, not `5.55…`. There is no
   point key in hex.
+- **The last keypad row is bitwise**, not arithmetic: `&`, `⊻` (XOR) and `|`.
+  They cost `√`, `^` and `00`, all of which still work from a hardware keyboard.
+  `^` was the one worth removing on its own merits — it means XOR in every
+  language a hex user knows, so leaving it as exponentiation was a standing trap.
+  Precedence is C's: `&` tighter than `⊻` tighter than `|`, all three looser than
+  `+` and `−`, so `FF&0F+1` groups as `FF&(0F+1)`.
+- **Bitwise refuses a negative operand.** BigInt would answer `-1 & FF` with
+  `255`, because its operators model an infinite two's-complement register. This
+  mode is signed magnitude with no word size, so that answer would assert a model
+  the rest of the mode does not have. See below.
 - **`√` truncates too**, for the same reason: `√FF` is `F`, since 15² is 225 and
   16² is 256. It is computed by Newton's method on `BigInt`, never via
   `Math.sqrt` — a double would lose the exactness above 2^53 that the hex

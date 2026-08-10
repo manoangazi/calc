@@ -22,6 +22,11 @@ export const ERRORS = {
   // duration plus a bare number does not say plus what — both are refused rather
   // than coerced, because a plausible wrong answer is worse than no answer.
   timetype: { display: '—', hint: 'Not a time operation' },
+  // Hex only, both of them. Bitwise operators are meaningless on a double, and
+  // meaningless on a negative here because hex is signed magnitude rather than
+  // two's complement — there is no word size, so there is no -1 = FFFF….
+  bitdec:  { display: '—', hint: 'Bitwise works in hex only' },
+  bitneg:  { display: '—', hint: 'Bitwise needs a positive value' },
 };
 
 export const isCalcError = (e) => e instanceof CalcError && e.code in ERRORS;

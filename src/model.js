@@ -11,7 +11,7 @@ export const MAX_LENGTH = 120;
 /* `√` is included so pressing a binary operator straight after one corrects it
    — `√` then `+` gives `+`, not the unparseable `√+`. It is deliberately absent
    from AFTER_OPEN's own logic path: see the `sqrt` branch, which inserts. */
-export const OPERATORS = '+-*/^√';
+export const OPERATORS = '+-*/^√&⊻|';
 const AFTER_OPEN = OPERATORS + '(';
 
 /* Radix-dependent character classes. Hex has no point, so `dot` is inert there
@@ -20,7 +20,7 @@ const TRAILING = { [DEC]: /[0-9.]+$/, [HEX]: /[0-9A-F]+$/, [TIM]: /[0-9:.hms]+$/
 const LEADING = { [DEC]: /^[0-9.]+/, [HEX]: /^[0-9A-F]+/, [TIM]: /^[0-9:.hms]+/ };
 const LEGAL_SRC = {
   [DEC]: /^[0-9.+\-*/^()√]*$/,
-  [HEX]: /^[0-9A-F+\-*/^()√]*$/,
+  [HEX]: /^[0-9A-F+\-*/^()√&⊻|]*$/,
   [TIM]: /^[0-9:.hms+\-*/^()√]*$/,
 };
 const LEGAL_DIGIT = { [DEC]: /^[0-9]$/, [HEX]: /^[0-9A-F]$/, [TIM]: /^[0-9]$/ };

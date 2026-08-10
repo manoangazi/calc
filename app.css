@@ -539,8 +539,14 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
 .keypad.hex { grid-template-columns: repeat(5, 1fr); }
 /* .keypad sets display:grid, which would otherwise beat the hidden attribute. */
 .keypad[hidden] { display: none; }
+/* The root sits high: its overbar clears cap height, so at the shared key size it
+   drew 21px of ink against 17 for × and ^ and read as the tallest thing on the
+   pad. Sized down to land in that cluster. This is the per-glyph ink rule, which
+   is right here — √ is a standalone symbol with no baseline to answer to, unlike
+   the h/m/s letters. The hex rule is separate because .keypad.hex .key.fn would
+   otherwise outrank it on specificity. */
+.key[data-cmd="sqrt"] { font-size: 21px; }
 .keypad.hex .key.fn { font-size: 21px; }
-.keypad.hex .key[data-cmd="zeros"] { font-size: 23px; }
 
 /*
  * TIM keeps the decimal four-column grid, so nothing needs re-laying out. The
@@ -600,8 +606,8 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
      line-height 1 does not contain a glyph this size. */
   .key.op { font-size: 30px; }
   .key[data-cmd="op:/"] { font-size: 20px; }
+  .key[data-cmd="sqrt"] { font-size: 18px; }
   .keypad.hex .key.fn { font-size: 18px; }
-  .keypad.hex .key[data-cmd="zeros"] { font-size: 20px; }
 }
 
 /* Shortest landscape phones (SE-class, 320px). Five key rows leave about 26px
@@ -623,8 +629,8 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   .key { font-size: 17px; }
   .key.op { font-size: 22px; }
   .key[data-cmd="op:/"] { font-size: 15px; }
+  .key[data-cmd="sqrt"] { font-size: 13px; }
   .keypad.hex .key.fn { font-size: 13px; }
-  .keypad.hex .key[data-cmd="zeros"] { font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
