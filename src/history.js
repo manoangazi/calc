@@ -18,9 +18,9 @@ export const MAX_ENTRIES = 50;
 export const STORAGE_KEY = 'manocalc.history';
 
 const LEGAL_SRC = {
-  [DEC]: /^[0-9.+\-*/^()]+$/,
-  [HEX]: /^[0-9A-F+\-*/^()]+$/,
-  [TIM]: /^[0-9:.hms+\-*/^()]+$/,
+  [DEC]: /^[0-9.+\-*/^()√]+$/,
+  [HEX]: /^[0-9A-F+\-*/^()√]+$/,
+  [TIM]: /^[0-9:.hms+\-*/^()√]+$/,
 };
 const LEGAL_BIGINT = /^-?[0-9]+$/;
 const MAX_SRC = 120;

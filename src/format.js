@@ -138,7 +138,7 @@ export function formatResult(n, radix = config.radix) {
   return groupDecimalString(toPlainString(rounded));
 }
 
-const OP_GLYPH = { '+': '+', '-': '−', '*': '×', '/': '÷', '^': '^' };
+const OP_GLYPH = { '+': '+', '-': '−', '*': '×', '/': '÷', '^': '^', '√': '√' };
 
 /**
  * One part per buffer character, each carrying its buffer index `i`, plus

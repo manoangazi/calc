@@ -150,6 +150,24 @@ eq(mixed.length, 2, 'the same source in two bases is two entries, not a repeat')
 
 // ---- report -----------------------------------------------------------------
 
+// ---- square root ------------------------------------------------------------
+
+/* Integer, truncating toward zero — the same bargain division already makes,
+   because there are no fractions in this mode. */
+eq(hex('√FF'), 15n, 'root of FF truncates to F');
+eq(hex('√100'), 16n, 'root of an exact square is exact');
+eq(hex('√0'), 0n, 'root of zero');
+eq(hex('√1'), 1n, 'root of one');
+eq(hex('√2'), 1n, 'root of two truncates');
+eq(hex('√3'), 1n, 'root of three truncates');
+eq(hex('√4'), 2n, 'root of four is exact');
+/* The reason this cannot go through Math.sqrt: a double loses exactness above
+   2^53, and preserving that is the entire point of the BigInt evaluator.
+   (2^64)^2 has an exact root that a float would round. */
+eq(hex('√' + '1' + '0'.repeat(32)), 1n << 64n, 'exact root far above 2^53');
+eq(hex('√(FFFFFFFFFFFFFFFF*FFFFFFFFFFFFFFFF)'), 0xFFFFFFFFFFFFFFFFn, 'root undoes a 64-bit square exactly');
+eq(code(() => hex('√-4')), 'undef', 'root of a negative is refused');
+
 if (failures.length) {
   console.error(`${failures.length} failed, ${pass} passed\n`);
   for (const f of failures) console.error(`  ✗ ${f}\n`);

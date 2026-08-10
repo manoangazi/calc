@@ -8,7 +8,10 @@ import { canInsertMarker, toBuffer } from './time.js';
 export const MAX_LENGTH = 120;
 
 /** Every binary operator key. Kept in one place so ^ cannot be missed. */
-export const OPERATORS = '+-*/^';
+/* `√` is included so pressing a binary operator straight after one corrects it
+   — `√` then `+` gives `+`, not the unparseable `√+`. It is deliberately absent
+   from AFTER_OPEN's own logic path: see the `sqrt` branch, which inserts. */
+export const OPERATORS = '+-*/^√';
 const AFTER_OPEN = OPERATORS + '(';
 
 /* Radix-dependent character classes. Hex has no point, so `dot` is inert there
@@ -16,9 +19,9 @@ const AFTER_OPEN = OPERATORS + '(';
 const TRAILING = { [DEC]: /[0-9.]+$/, [HEX]: /[0-9A-F]+$/, [TIM]: /[0-9:.hms]+$/ };
 const LEADING = { [DEC]: /^[0-9.]+/, [HEX]: /^[0-9A-F]+/, [TIM]: /^[0-9:.hms]+/ };
 const LEGAL_SRC = {
-  [DEC]: /^[0-9.+\-*/^()]*$/,
-  [HEX]: /^[0-9A-F+\-*/^()]*$/,
-  [TIM]: /^[0-9:.hms+\-*/^()]*$/,
+  [DEC]: /^[0-9.+\-*/^()√]*$/,
+  [HEX]: /^[0-9A-F+\-*/^()√]*$/,
+  [TIM]: /^[0-9:.hms+\-*/^()√]*$/,
 };
 const LEGAL_DIGIT = { [DEC]: /^[0-9]$/, [HEX]: /^[0-9A-F]$/, [TIM]: /^[0-9]$/ };
 
@@ -240,6 +243,18 @@ export function apply(state, cmd) {
     if ((trailingNumber(before) + leadingNumber(after)).includes('.')) return state;
     if (trailingNumber(before) === '') before += '0';
     return insert(state, before, '.', after);
+  }
+
+  /*
+   * The root is prefix, so none of the binary-operator rules below apply to it:
+   * it is legal where a number is legal — at the start, after `(`, after another
+   * operator, and after itself — and it never replaces the character before it.
+   * Following a value it means multiplication, `2√9`, so the `*` is written in
+   * for the same reason `(2+3)4` gets one.
+   */
+  if (kind === 'sqrt') {
+    if (trailingNumber(before) !== '' || lastChar(before) === ')') before += '*';
+    return insert(state, before, '√', after);
   }
 
   if (kind === 'op') {

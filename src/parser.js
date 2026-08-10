@@ -51,6 +51,18 @@ export function parse(src, radix = DEC) {
       depth--;
       return node;
     }
+    /*
+     * Same precedence as unary minus, so `√9+7` is 10 rather than 4 — the root
+     * takes the next factor, not the rest of the expression — and `-√4`, `√-4`
+     * and `√√16` all parse. Anything wider needs brackets: `√(9+7)`.
+     */
+    if (at(OP, '√')) {
+      i++;
+      if (++depth > MAX_DEPTH) throw new CalcError('depth', 'too many nested roots');
+      const node = { type: 'sqrt', operand: factor() };
+      depth--;
+      return node;
+    }
     return power();
   }
 

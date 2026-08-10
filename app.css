@@ -333,7 +333,7 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
 /* Secondary, because it is the secondary gesture: the tap is backspace and only
    the hold is AC. Sized down and dimmed so it reads as an annotation on the key
    rather than a second key crammed into the same box. */
-.util.back .alt { font-size: 15px; opacity: 0.72; letter-spacing: 0.02em; }
+.util.back .alt { font-size: 15px; font-weight: 700; opacity: 0.8; letter-spacing: 0.02em; }
 
 /* The unit pickers sit in the dead space this row already had between its two
    buttons, so CON costs the display card no extra height. Native selects again,
@@ -354,14 +354,28 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   background: var(--bg);
   color: var(--accent);
   font: inherit;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
   padding: 7px 10px;
   border-radius: 6px;
-  max-width: 96px;
+  max-width: 116px;
   text-overflow: ellipsis;
 }
-.conv-arrow { color: var(--muted); font-size: 15px; }
+/* A button, not a label: it swaps the two sides. Sized as a tap target rather
+   than as text, and given the accent so it reads as something you can press. */
+.conv-arrow {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 19px;
+  line-height: 1;
+  padding: 6px 4px;
+  border-radius: 6px;
+  transition: transform 120ms ease;
+}
+.conv-arrow:active { background: var(--bg); transform: scale(0.9); }
 
 .menu {
   position: absolute;
@@ -508,8 +522,6 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
 
 /* Clear throws work away, so it must not read as just another function key. Own
    colour and own fill, rather than a louder version of the accent. */
-.key.clear { background: var(--danger-soft); color: var(--danger); }
-.key.clear:active { background: var(--danger-soft-active); }
 
 .key .depth {
   font-size: 14px;
@@ -528,7 +540,6 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
 /* .keypad sets display:grid, which would otherwise beat the hidden attribute. */
 .keypad[hidden] { display: none; }
 .keypad.hex .key.fn { font-size: 21px; }
-.keypad.hex .key.clear { font-size: 22px; }
 .keypad.hex .key[data-cmd="zeros"] { font-size: 23px; }
 
 /*
@@ -542,10 +553,14 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
  * already use. Re-measure with canvas actualBoundingBox rather than trusting
  * font-size if they are ever changed.
  */
+/* These were once sized per glyph to equalise ink height — 27/39/38 — because
+   `h` is an ascender and `m`/`s` are x-height. That was the wrong rule for
+   letters: matching ink height meant `m` ran at 39px against `h`'s 27px, so its
+   strokes were half again as thick and the three read as different weights, or
+   different fonts. Equal ink is right for standalone symbols like × and ÷, which
+   have no shared baseline to answer to. Letters do, so they share one size and
+   let the ascender be taller, exactly as type normally sets. */
 .key.unit { color: var(--accent); }
-.key[data-cmd="unit:h"] { font-size: 27px; }
-.key[data-cmd="unit:m"] { font-size: 39px; }
-.key[data-cmd="unit:s"] { font-size: 38px; }
 
 /*
  * Landscape: the display takes only what it needs and the keypad absorbs the
@@ -568,7 +583,7 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   .rate-note { font-size: 11px; min-height: 13px; }
   .hint { min-height: 0; margin-top: 0; font-size: 13px; }
   .utility { padding: 4px 0 0; }
-  .conv select { font-size: 13px; padding: 4px 6px; }
+  .conv select { font-size: 16px; padding: 4px 6px; }
   /* The card is only ~100px tall here, so a menu anchored to its bottom edge runs
      off the top of the screen. Grow it downward from the card instead — overlaying
      the keypad is fine for a popover; leaving the viewport is not. */
@@ -586,12 +601,7 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   .key.op { font-size: 30px; }
   .key[data-cmd="op:/"] { font-size: 20px; }
   .keypad.hex .key.fn { font-size: 18px; }
-  .keypad.hex .key.clear { font-size: 19px; }
   .keypad.hex .key[data-cmd="zeros"] { font-size: 20px; }
-  /* Scaled with the operators they sit beside, keeping the per-glyph ratios. */
-  .key[data-cmd="unit:h"] { font-size: 20px; }
-  .key[data-cmd="unit:m"] { font-size: 29px; }
-  .key[data-cmd="unit:s"] { font-size: 28px; }
 }
 
 /* Shortest landscape phones (SE-class, 320px). Five key rows leave about 26px
@@ -605,8 +615,8 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   .rate-note { font-size: 10px; min-height: 12px; }
   .util { min-height: 26px; font-size: 17px; }
   .util.back { min-height: 28px; font-size: 16px; }
-  .conv select { font-size: 12px; padding: 3px 5px; }
-  .conv-arrow { font-size: 12px; }
+  .conv select { font-size: 15px; padding: 3px 5px; }
+  .conv-arrow { font-size: 15px; padding: 4px 3px; }
   /* Key rows are only ~24px here, so line boxes must stay under that or the
      glyphs clip. Ink parity with the digits is not achievable at this height —
      fitting wins. */
@@ -614,11 +624,7 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   .key.op { font-size: 22px; }
   .key[data-cmd="op:/"] { font-size: 15px; }
   .keypad.hex .key.fn { font-size: 13px; }
-  .keypad.hex .key.clear { font-size: 14px; }
   .keypad.hex .key[data-cmd="zeros"] { font-size: 15px; }
-  .key[data-cmd="unit:h"] { font-size: 14px; }
-  .key[data-cmd="unit:m"] { font-size: 21px; }
-  .key[data-cmd="unit:s"] { font-size: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

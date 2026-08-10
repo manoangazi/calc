@@ -11,8 +11,17 @@ See [BUILD-SPEC.md](BUILD-SPEC.md) for the full spec and staging plan.
 **Stages 1–5 are complete**, plus the history tape and long-press copy from
 stage 6. Only the optional `ANS` key remains unbuilt.
 
-Arithmetic is `+ − × /`, exponent `^`, unary minus, decimals and arbitrarily
-nested parentheses, with live evaluation as you type.
+Arithmetic is `+ − × /`, exponent `^`, square root `√`, unary minus, decimals and
+arbitrarily nested parentheses, with live evaluation as you type.
+
+`√` is a prefix operator with the same precedence as unary minus, so it takes the
+next factor rather than the rest of the line: `√9+7` is 10, and `√(9+7)` is 4.
+It stacks (`√√16` is 2), and after a value it means multiplication, so `2√9` is 6
+— the same implicit `×` that `(2+3)4` gets. A negative under the root is refused
+rather than returned as `NaN`; this calculator is real-valued.
+
+There is no `AC` key on the keypad. Backspace does both jobs — tap to delete, hold
+to clear — and is labelled `⌫ AC` accordingly.
 
 Results show as many decimal places as they need, or a fixed 1–5 — pick from the
 `⋯` menu. Rounding is display-only, so changing it re-renders past history
@@ -31,6 +40,10 @@ inexact above 2^53, which is only 14 hex digits. Consequences worth knowing:
 
 - **Division truncates toward zero.** `10/3` is `5`, not `5.55…`. There is no
   point key in hex.
+- **`√` truncates too**, for the same reason: `√FF` is `F`, since 15² is 225 and
+  16² is 256. It is computed by Newton's method on `BigInt`, never via
+  `Math.sqrt` — a double would lose the exactness above 2^53 that the hex
+  evaluator exists to preserve, so `√(FFFFFFFFFFFFFFFF²)` comes back exact.
 - **Switching DEC → HEX drops any fraction.** `12.75` becomes `C`, and the hint
   line says so rather than letting it happen quietly.
 - **Negatives are signed magnitude**, not two's complement: `5-A` is `-5`. There
@@ -51,6 +64,11 @@ conversion applied to the result** — not a base — so the whole expression en
 is unchanged and `12*3` converts 36. The converted value gets its own line under
 the result; the from/to pickers sit in the utility row, and the category is in
 the `⋯` menu, because you pick it once and then change units repeatedly.
+
+The `⇄` between the two pickers swaps them. Reversing a conversion by hand
+otherwise means two trips through the native picker to set each side to what the
+other already had. The units swap; the typed expression does not, since the
+buffer is the input and rewriting it would answer a question nobody asked.
 
 Ten categories: length, mass, temperature, volume, area, speed, data, time,
 pressure, energy. Worth knowing:
@@ -124,8 +142,8 @@ Durations carry a **type**, and that is what makes the mode trustworthy:
 - `dur ± dur` → duration; `dur × scalar` and `dur ÷ scalar` → duration.
 - **`dur ÷ dur` → a plain number.** `3h / 20m` is `9` — how many 20-minute slots
   fit in three hours — and it renders as `9`, not `0:00:09`.
-- `dur × dur`, `dur ± scalar` and `dur ^ anything` are **refused** with "Not a
-  time operation". A duration squared is not a quantity that exists, and
+- `dur × dur`, `dur ± scalar`, `dur ^ anything` and `√dur` are **refused** with
+  "Not a time operation" — √(4 hours) has no unit anyone can name. A duration squared is not a quantity that exists, and
   `1h + 2` does not say plus what; a plausible wrong answer would be worse than
   none.
 

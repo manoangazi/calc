@@ -25,8 +25,10 @@
     <select id="radix">
       <option value="10" selected>DEC</option>
       <option value="16">HEX</option>
-      <option value="con">CON</option>
       <option value="60">TIM</option>
+      <!-- Last because it is the odd one out: the other three are bases, this is
+           a conversion laid over the decimal one. -->
+      <option value="con">CON</option>
     </select>
     <span class="chev" aria-hidden="true">&#9662;</span>
   </label>
@@ -56,7 +58,7 @@
          .utility ignore it. -->
     <div class="conv" hidden>
       <select id="conv-from" aria-label="Convert from"></select>
-      <span class="conv-arrow" aria-hidden="true">&#8646;</span>
+      <button type="button" class="conv-arrow" data-act="swap" aria-label="Swap the two units">&#8646;</button>
       <select id="conv-to" aria-label="Convert to"></select>
     </div>
     <!-- Both of the key's jobs are on its face: tap deletes, long-press clears.
@@ -95,12 +97,12 @@
   </div>
 </main>
 
-<!-- Clear reads "AC" on every keypad. It started as a hex-only label, to keep it
-     from being misread as the hex digit C two keys away, but a key that means
-     the same thing in all four modes should not change its name between them. -->
+<!-- No AC on the pad: it moved to the backspace key, which shows both ⌫ and AC
+     and does both jobs, so a second clear key here would be a duplicate. That
+     frees the corner for ( ), and ( )'s old slot takes the root. -->
 <div class="keypad dec" role="group" aria-label="Calculator keypad">
-  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">AC</button>
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
+  <button type="button" class="key fn" data-cmd="sqrt" aria-label="Square root">&radic;</button>
   <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
   <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
 
@@ -152,8 +154,8 @@
   <button type="button" class="key" data-cmd="digit:F">F</button>
   <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
 
-  <button type="button" class="key clear" data-cmd="clear" aria-label="Clear">AC</button>
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
+  <button type="button" class="key fn" data-cmd="sqrt" aria-label="Square root">&radic;</button>
   <button type="button" class="key op" data-cmd="op:^" aria-label="Exponent" aria-keyshortcuts="^">^</button>
   <button type="button" class="key" data-cmd="zeros">00</button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>

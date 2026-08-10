@@ -153,6 +153,16 @@ const ILLEGAL = [
 
 for (const [src, label] of ILLEGAL) eq(run(src), 'timetype', `${label} is refused`);
 
+/* The root of a duration is refused for the same reason a product of two is:
+   √(4 hours) has no unit anyone can name. A scalar inside a time
+   expression is still ordinary arithmetic, so its root is a plain number. */
+eq(run('√4h'), 'timetype', 'root of a duration is refused');
+eq(run('√(1h+2h)'), 'timetype', 'root of a duration sum too');
+eq(seconds('√9'), 3, 'root of a scalar is a scalar');
+eq(run('√9').duration, false, 'and it carries no duration flag');
+eq(shown('4h*√9'), '12:00:00', 'a rooted scalar still scales a duration');
+eq(run('√-9'), 'undef', 'root of a negative scalar is refused');
+
 eq(run('1h/0'), 'divzero', 'divide by zero still says so');
 eq(run('1h/0s'), 'divzero', 'a zero duration divisor too');
 

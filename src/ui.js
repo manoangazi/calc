@@ -22,6 +22,7 @@ const convertedEl = document.getElementById('converted');
 const convRow = document.querySelector('.conv');
 const convFromSel = document.getElementById('conv-from');
 const convToSel = document.getElementById('conv-to');
+const convSwapBtn = document.querySelector('[data-act="swap"]');
 const catBlock = document.querySelector('.cat-block');
 const catRow = document.querySelector('.cat-row');
 const rateNoteEl = document.getElementById('rate-note');
@@ -713,6 +714,23 @@ function refreshRates() {
     render();
   });
 }
+
+/*
+ * The arrow between the pickers swaps them. It reads as a swap already, and
+ * reversing a conversion by hand means two trips through the native picker to
+ * set each side to what the other already had.
+ *
+ * The units move, the typed expression does not: the buffer is the input, and
+ * rewriting it would be answering a question that was not asked.
+ */
+convSwapBtn.addEventListener('click', () => {
+  if (!conversion) return;
+  [conversion.from, conversion.to] = [conversion.to, conversion.from];
+  convFromSel.value = conversion.from.id;
+  convToSel.value = conversion.to.id;
+  render();
+  haptic(10);
+});
 
 for (const [sel, side] of [[convFromSel, 'from'], [convToSel, 'to']]) {
   sel.addEventListener('change', () => {

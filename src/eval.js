@@ -7,6 +7,12 @@ export function evaluate(node) {
       return Number(node.text);
     case 'neg':
       return -evaluate(node.operand);
+    case 'sqrt': {
+      const v = evaluate(node.operand);
+      // Same reasoning as (-8)^0.5 above: this calculator is real-valued.
+      if (v < 0) throw new CalcError('undef', 'root of a negative');
+      return Math.sqrt(v);
+    }
     case 'binary': {
       const a = evaluate(node.left);
       const b = evaluate(node.right);
@@ -93,6 +99,17 @@ export function evaluateTime(node) {
       const v = evaluateTime(node.operand);
       return { seconds: -v.seconds, duration: v.duration };
     }
+    /*
+     * The root of a duration is not a duration — √(4 hours) has no unit anyone
+     * can name — so it is refused for the same reason `2h * 3h` is. A scalar
+     * inside a time expression is still ordinary arithmetic, so `√9` is 3.
+     */
+    case 'sqrt': {
+      const v = evaluateTime(node.operand);
+      if (v.duration) throw new CalcError('timetype', 'root of a duration');
+      if (v.seconds < 0) throw new CalcError('undef', 'root of a negative');
+      return scalar(Math.sqrt(v.seconds));
+    }
     case 'binary':
       return timeOp(node.op, evaluateTime(node.left), evaluateTime(node.right));
   }
@@ -126,6 +143,26 @@ export function evaluateHex(node) {
       return BigInt(`0x${node.text}`);
     case 'neg':
       return -evaluateHex(node.operand);
+    /*
+     * Integer square root by Newton's method, truncating toward zero — the same
+     * bargain hex division already makes, and for the same reason: there are no
+     * fractions in this mode. √FF is F, because 15² is 225 and 16² is 256.
+     *
+     * Math.sqrt is not usable here. It would go through a double and lose the
+     * exactness above 2^53 that the whole hex evaluator exists to preserve.
+     */
+    case 'sqrt': {
+      const v = evaluateHex(node.operand);
+      if (v < 0n) throw new CalcError('undef', 'root of a negative');
+      if (v < 2n) return v;
+      let x = 1n << BigInt(Math.ceil(bitLength(v) / 2));   // ≥ √v, so we descend
+      for (;;) {
+        const next = (x + v / x) >> 1n;
+        if (next >= x) break;
+        x = next;
+      }
+      return x;
+    }
     case 'binary': {
       const a = evaluateHex(node.left);
       const b = evaluateHex(node.right);

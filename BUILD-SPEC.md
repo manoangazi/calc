@@ -157,6 +157,28 @@ own tint rather than sharing the accent with `( )` and `^` — it throws work aw
 and should not look like a sibling of the keys that build an expression. Measured
 6.1:1 in light and 7.1:1 in dark.
 
+**`√` is an operator, not a function.** There are no names in this grammar and no
+argument list to parse, so it tokenizes as an `OP` and the parser gives it unary
+precedence — the same level as unary minus, which makes `√9+7` = 10 rather than 4.
+Widening it needs brackets, exactly as widening a negation does. Three
+consequences worth stating:
+
+- **It is prefix, so none of the binary-operator reducer rules apply.** It is
+  legal wherever a number is legal, never replaces the character before it, and
+  after a value writes an implicit `×` — `2√9` for the same reason `(2+3)4` gets
+  one. A *binary* operator typed straight after it still corrects it, so `√` then
+  `+` gives `+` and not the unparseable `√+`.
+- **Hex needs an integer square root.** `Math.sqrt` would route through a double
+  and lose the exactness above 2^53 that the BigInt evaluator exists for, so it
+  is Newton's method on `BigInt`, truncating toward zero — the same bargain hex
+  division already makes. Pinned by a test that roots an exact 128-bit square.
+- **A duration has no root.** `√(4 hours)` names no unit, so it raises `timetype`
+  alongside `dur × dur`. A scalar inside a time expression is ordinary
+  arithmetic, so `√9` is still 3.
+
+Negatives raise the existing `undef` — "Not a real number" — which `(-8)^0.5`
+already used. No new error code was needed.
+
 **Backspace carries both its jobs on its face.** Tap deletes, long-press clears,
 so it shows `⌫` and a smaller, dimmed `AC` and wears the danger colours rather
 than the accent — the same thing the keypad's `AC` says: this one throws work

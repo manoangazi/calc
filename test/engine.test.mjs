@@ -310,6 +310,30 @@ eq(formatResult(NaN), '—', 'fixed places do not disturb NaN');
 eq(formatResult(1e20).includes('×10^'), true, 'very large results stay in exponential form');
 setDecimals('auto');
 
+// ---- square root ------------------------------------------------------------
+
+eq(calc('√9'), 3, 'root of a perfect square');
+eq(calc('√2'), Math.SQRT2, 'irrational root');
+eq(calc('√0'), 0, 'root of zero');
+// Unary precedence: the root takes the next factor, not the rest of the line.
+eq(calc('√9+7'), 10, 'root binds to its own operand, not the sum');
+eq(calc('√(9+7)'), 4, 'brackets widen it');
+eq(calc('2*√9'), 6, 'root as a factor');
+eq(calc('√9*2'), 6, 'root on the left of a factor');
+eq(calc('√√16'), 2, 'nested roots');
+eq(calc('-√4'), -2, 'negated root');
+eq(calc('√4^2'), 4, 'root of a power');
+eq(codeOf(() => calc('√-4')), 'undef', 'root of a negative is refused, not NaN');
+eq(codeOf(() => calc('√')), 'syntax', 'a bare root is incomplete');
+
+// The keypad writes the implicit multiply, exactly as it does for `(2+3)4`.
+eq(keyed('digit:2', 'sqrt', 'digit:9').buf, '2*√9', 'root after a value inserts *');
+eq(keyed('sqrt', 'digit:9').buf, '√9', 'root at the start stands alone');
+eq(keyed('digit:2', 'op:+', 'sqrt', 'digit:9').buf, '2+√9', 'root after an operator does not replace it');
+eq(keyed('sqrt', 'sqrt', 'digit:9').buf, '√√9', 'roots stack');
+eq(keyed('sqrt', 'op:+').buf, '+', 'a binary operator corrects a trailing root');
+eq(keyedValue('sqrt', 'digit:8', 'digit:1'), 9, 'a rooted expression previews');
+
 if (failures.length) {
   console.error(`\n${failures.length} failed, ${pass} passed\n`);
   for (const f of failures) console.error(`  ✗ ${f}\n`);
