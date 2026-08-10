@@ -189,7 +189,17 @@ body {
   line-height: 1.35;
   text-align: right;
   word-break: break-all;
+  /* The backstop under fitExpression: min-height:0 is what lets a flex item
+     shrink past its content, so an expression too long even at the smallest step
+     scrolls instead of shoving the utility row down behind the keypad. Without
+     it the item refuses to shrink and the overflow lands on its siblings. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
 }
+.expression::-webkit-scrollbar { display: none; }
 .expression .op { color: var(--accent); padding: 0 1px; }
 .expression .paren { color: var(--accent); }
 .expression .placeholder { color: var(--muted); }
@@ -296,8 +306,12 @@ body {
    and the negative margin cancels the card's padding so the right edges meet.
    body has overflow:hidden, so 100vw carries no scrollbar. */
 .util.back {
-  background: var(--accent-fill);
-  color: var(--on-accent);
+  background: var(--danger-soft);
+  color: var(--danger);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-width: 0;
   width: calc((100vw - 5 * var(--gap)) / 4);
   margin-right: calc(-1 * var(--card-pad));
@@ -306,7 +320,11 @@ body {
 }
 /* Hex is a five-column grid, so its operator column is narrower. */
 body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
-.util.back:active { background: var(--accent-fill-active); }
+.util.back:active { background: var(--danger-soft-active); }
+/* Secondary, because it is the secondary gesture: the tap is backspace and only
+   the hold is AC. Sized down and dimmed so it reads as an annotation on the key
+   rather than a second key crammed into the same box. */
+.util.back .alt { font-size: 15px; opacity: 0.72; letter-spacing: 0.02em; }
 
 /* The unit pickers sit in the dead space this row already had between its two
    buttons, so CON costs the display card no extra height. Native selects again,
@@ -381,8 +399,14 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   gap: 4px;
   padding: 0 8px 6px;
 }
+/* The shared `.menu button` rule above is built for full-width menu items: it
+   sets `display: flex` with `space-between` and `text-align: left` so a label and
+   its value push apart. These buttons hold a single centred token, so both have
+   to be undone — a lone flex item under `space-between` sits at the start. */
 .dp-row button {
   appearance: none;
+  justify-content: center;
+  text-align: center;
   flex: 1 1 0;
   min-width: 0;
   border: 0;
@@ -410,6 +434,9 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
 }
 .cat-row button {
   appearance: none;
+  /* Same undo as .dp-row button — see the note there. */
+  justify-content: center;
+  text-align: center;
   min-width: 0;
   border: 0;
   border-radius: 6px;

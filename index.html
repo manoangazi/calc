@@ -59,7 +59,12 @@
       <span class="conv-arrow" aria-hidden="true">&#8646;</span>
       <select id="conv-to" aria-label="Convert to"></select>
     </div>
-    <button type="button" class="util back" data-cmd="back" data-long="clear" aria-label="Backspace">&#9003;</button>
+    <!-- Both of the key's jobs are on its face: tap deletes, long-press clears.
+         The AC label was previously only in the keypad, which left the clear
+         gesture undiscoverable — and entirely unlabelled in TIM, whose pad has no
+         AC key at all. Carrying the danger colours rather than the accent says
+         the same thing the keypad's AC does: this one throws work away. -->
+    <button type="button" class="util back" data-cmd="back" data-long="clear" aria-label="Backspace, hold to clear">&#9003;<span class="alt">AC</span></button>
   </div>
 
   <div class="menu" role="menu" hidden>
@@ -155,11 +160,10 @@
 </div>
 
 <!-- TIM gives up two keys the mode cannot use — ^ (a duration raised to a power is
-     not a quantity) and . (redundant once s exists) — which frees a whole row and
-     lets the four operators stack in one column in / × − + order, something the
-     decimal pad cannot do because ^ holds a top slot there. h, m and s take the
-     bottom row in descending order, the order they are typed in, where they are
-     nearest the thumb: every duration ends in one of them.
+     not a quantity) and . (redundant once s exists) — which frees the top row for
+     h, m and s in descending order, the order they are typed in, and lets the
+     four operators stack in one column in / × − + order, something the decimal
+     pad cannot do because ^ holds a top slot there.
 
      There is no AC key. Backspace already long-presses to clear, and the freed
      slot is what makes the grid come out at exactly 20 keys with no double-width
@@ -169,9 +173,9 @@
      The colon spelling — 1:20.45 — stays legal input for a hardware keyboard and
      for history recall; it is simply not what the keys emit. -->
 <div class="keypad tim" role="group" aria-label="Time keypad" hidden>
-  <button type="button" class="key" data-cmd="digit:0">0</button>
-  <button type="button" class="key" data-cmd="zeros">00</button>
-  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
+  <button type="button" class="key unit" data-cmd="unit:h" aria-label="Hours">h</button>
+  <button type="button" class="key unit" data-cmd="unit:m" aria-label="Minutes">m</button>
+  <button type="button" class="key unit" data-cmd="unit:s" aria-label="Seconds">s</button>
   <button type="button" class="key op" data-cmd="op:/" aria-label="Divide">/</button>
 
   <button type="button" class="key" data-cmd="digit:7">7</button>
@@ -189,9 +193,9 @@
   <button type="button" class="key" data-cmd="digit:3">3</button>
   <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
 
-  <button type="button" class="key unit" data-cmd="unit:h" aria-label="Hours">h</button>
-  <button type="button" class="key unit" data-cmd="unit:m" aria-label="Minutes">m</button>
-  <button type="button" class="key unit" data-cmd="unit:s" aria-label="Seconds">s</button>
+  <button type="button" class="key" data-cmd="digit:0">0</button>
+  <button type="button" class="key" data-cmd="zeros">00</button>
+  <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 

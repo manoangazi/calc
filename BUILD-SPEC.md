@@ -157,6 +157,26 @@ own tint rather than sharing the accent with `( )` and `^` — it throws work aw
 and should not look like a sibling of the keys that build an expression. Measured
 6.1:1 in light and 7.1:1 in dark.
 
+**Backspace carries both its jobs on its face.** Tap deletes, long-press clears,
+so it shows `⌫` and a smaller, dimmed `AC` and wears the danger colours rather
+than the accent — the same thing the keypad's `AC` says: this one throws work
+away. Before, the hold was unlabelled everywhere and TIM had no clear key at all.
+`aria-label` reads "Backspace, hold to clear"; the delegated handlers use
+`closest()`, so the added `<span>` child cannot swallow a tap.
+
+**The expression fits by measurement, not by a line count.** `fitExpression`
+steps the font down until the expression fits — originally three lines, hardcoded.
+That constant was set when the card had fewer rows: TIM adds the decimal-hours
+line and CON's currency category adds the rate note on top, so three lines plus
+those rows exceeded the card and pushed the utility row down *behind* the keypad,
+which paints over it by being later in the DOM. It now fits to
+`min(3 lines, expressionRoom())`, where `expressionRoom` measures the card's
+content box less every visible sibling — self-maintaining, so a future row costs
+the expression its height with no constant to retune. `.expression` also gets
+`min-height: 0` and `overflow-y: auto` as a backstop: `min-height: 0` is the part
+that actually lets a flex item shrink past its content, so a very long expression
+scrolls instead of displacing what sits below it.
+
 **Backspace is aligned to the operator column.** It sits in the utility row inside
 the display card, one row above the keypad, so by default it landed 16px inside
 the operator column's right edge at a width that matched nothing — two near-misses
@@ -649,11 +669,11 @@ switch — but the decimal grid is shaped around `^` holding a top slot, and TIM
 no use for `^`. Freeing it, and dropping `AC`, leaves:
 
 ```
-0   00  ( ) /
+h   m   s   /
 7   8   9   ×
 4   5   6   −
 1   2   3   +
-h   m   s   =
+0   00  ( ) =
 ```
 
 Which is exactly 20 keys in 20 cells: no double-width key, no gap, the three unit
@@ -661,17 +681,19 @@ markers together in the descending order they are typed in, and all four operato
 in one column in `/ × − +` order — none of which the decimal pad can do. `00`
 earns its slot back here because `2h00m` and `1h05m` are common shapes.
 
-The unit row sits at the bottom, beside `=`, rather than at the top: every
-duration literal ends in one of `h`/`m`/`s`, so they are reached more often than
-any single digit and belong nearest the thumb. Their sizing rules key off
-`data-cmd` rather than grid position, so moving the row cost no CSS.
+The unit row was tried at the bottom, beside `=`, on the argument that every
+duration ends in an `h`/`m`/`s` so they are reached more often than any digit —
+and moved back to the top, which reads better as a set. The sizing rules key off
+`data-cmd` rather than grid position, so the row moved twice at no CSS cost; that
+is the return on having sized the glyphs by command rather than by cell.
 
 Clear survives as the long-press on `⌫` (`data-long="clear"`), which every pad
-already carried, plus `Esc` on a hardware keyboard. The cost is real and worth
-naming: TIM is the one mode where that gesture is the *only* route to clear rather
-than a shortcut for a visible key, so it is undiscoverable to anyone who has not
-been told. It was accepted because the alternative was a 19-in-20 grid with an
-arbitrary wide key.
+already carried, plus `Esc` on a hardware keyboard. That gesture used to be
+undiscoverable — nothing on screen named it — which is why the backspace key now
+carries **both** labels, `⌫` and a smaller `AC`, in the danger colours the keypad's
+own clear key uses. Tap deletes, hold clears, and the face of the key says so.
+It is the answer to TIM having no `AC` at all, and it makes the same gesture
+legible in the three modes that do.
 
 ---
 

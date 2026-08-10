@@ -126,19 +126,53 @@ function render() {
 }
 
 /**
- * Step the expression down through a few sizes until it fits three lines. The
- * base size is read back from the stylesheet rather than hardcoded, so the
- * landscape and committed rules stay in charge of the starting point.
+ * Space the card can actually give the expression: its own content box, less
+ * every sibling that has to stay visible.
+ *
+ * A fixed three-line budget was wrong, because the card's other rows are not
+ * fixed. TIM shows the decimal-hours line and CON's currency category adds the
+ * rate note on top of that, so the same three lines that fit in DEC pushed the
+ * utility row — and with it backspace — down behind the keypad. Measuring is
+ * also self-maintaining: a future row costs the expression its height without
+ * anyone having to remember to retune a constant.
+ *
+ * Called after renderConverted and renderRateNote, so the hidden flags are
+ * current rather than a frame stale.
+ */
+function expressionRoom() {
+  const cs = getComputedStyle(card);
+  let used = 0;
+  for (const el of card.children) {
+    if (el === exprEl || el.hidden) continue;
+    const s = getComputedStyle(el);
+    if (s.position === 'absolute' || s.display === 'none') continue;   // the popover menu
+    used += el.getBoundingClientRect().height
+          + parseFloat(s.marginTop) + parseFloat(s.marginBottom);
+  }
+  return card.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - used;
+}
+
+/**
+ * Step the expression down through a few sizes until it fits. The base size is
+ * read back from the stylesheet rather than hardcoded, so the landscape and
+ * committed rules stay in charge of the starting point.
+ *
+ * Three lines stays the ceiling on looks; the measured room is the hard limit.
+ * If even the smallest size overflows, `.expression` scrolls rather than
+ * shoving the rows below it out of the card.
  */
 function fitExpression() {
   exprEl.style.fontSize = '';
   if (state.committed) return;
   const base = parseFloat(getComputedStyle(exprEl).fontSize);
   const sizes = [base, base * 0.85, base * 0.74, Math.max(MIN_EXPR_PX, base * 0.63)];
+  const room = expressionRoom();
   for (const size of sizes) {
     exprEl.style.fontSize = `${size}px`;
-    if (exprEl.scrollHeight <= size * 1.35 * 3 + 2) break;
+    if (exprEl.scrollHeight <= Math.min(size * 1.35 * 3 + 2, room)) break;
   }
+  // Keep the caret end in view when even the smallest size had to scroll.
+  exprEl.scrollTop = exprEl.scrollHeight;
 }
 
 /**
