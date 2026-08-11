@@ -305,8 +305,22 @@ body {
   transition: transform 80ms ease;
 }
 /* The ⋯ glyph is drawn thin at any size, so it needs the weight to hold its own
-   next to the filled backspace key. */
-.util[data-act="menu"] { font-weight: 700; font-size: 21px; }
+   next to the filled backspace key.
+
+   Width and the negative margin mirror .util.back: a fixed 64px button starting
+   at the card's padding edge does not track the keypad grid, so the glyph landed
+   4px right of the first column in DEC and 13px right in hex, where the columns
+   are narrower. Taking the column's own arithmetic centres it on the column in
+   every mode. min-width is cleared because the 64px floor would otherwise beat
+   the calc on a narrow hex grid and reintroduce the drift. */
+.util[data-act="menu"] {
+  font-weight: 700;
+  font-size: 21px;
+  min-width: 0;
+  width: calc((100vw - 5 * var(--gap)) / 4);
+  margin-left: calc(-1 * var(--card-pad));
+}
+body[data-pad="hex"] .util[data-act="menu"] { width: calc((100vw - 6 * var(--gap)) / 5); }
 .util:disabled { opacity: 0.4; }
 .util:active { transform: scale(0.94); }
 /* Sized and placed to sit directly above the operator column, so the two read as
@@ -354,16 +368,25 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   background: var(--bg);
   color: var(--accent);
   font: inherit;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 600;
-  /* line-height 1 with symmetric padding is what centres the selected text on
-     the box. Left at `normal` the line box is ~1.3em and the glyphs sit low in
-     it; the box was already centred in the row, so the misalignment was inside
-     the control rather than around it. Padding absorbs the height the tighter
-     line box gives up, so the control does not change size. */
-  line-height: 1;
-  padding: 10px;
+  /* Centring the selected text on the box, without eating the descenders.
+     `normal` (~1.3em) left the glyphs sitting low; a flat 1 centred them but
+     cropped the tail of a `g` in `mmHg`, because a line box exactly one em tall
+     has nowhere to put a descender. 1.25 is enough for one and still reads as
+     centred. Padding absorbs the difference so the control keeps its height. */
+  line-height: 1.25;
+  /* Matched to .util.back so the row reads as one band of controls. Vertical
+     padding is 0 and the height comes from min-height, which leaves the content
+     box tall enough that the text centres with room for a descender. */
+  min-height: 49px;
+  padding: 0 10px;
   border-radius: 6px;
+  /* A flex item defaults to min-width:auto, so the select refused to shrink below
+     its longest label — `gal (US)` at 104px pushed it out of .conv and under the
+     backspace. min-width:0 lets it shrink; overflow:hidden is what makes the
+     ellipsis below actually apply. */
+  min-width: 0;
   max-width: 116px;
   text-overflow: ellipsis;
 }
@@ -620,7 +643,7 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   .rate-note { font-size: 11px; min-height: 13px; }
   .hint { min-height: 0; margin-top: 0; font-size: 13px; }
   .utility { padding: 4px 0 0; }
-  .conv select { font-size: 16px; padding: 7px 6px; }
+  .conv select { font-size: 15px; padding: 0 6px; min-height: 38px; }
   /* The card is only ~100px tall here, so a menu anchored to its bottom edge runs
      off the top of the screen. Grow it downward from the card instead — overlaying
      the keypad is fine for a popover; leaving the viewport is not. */
@@ -655,7 +678,7 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
   .rate-note { font-size: 10px; min-height: 12px; }
   .util { min-height: 26px; font-size: 17px; }
   .util.back { min-height: 32px; font-size: 16px; }
-  .conv select { font-size: 15px; padding: 6px 5px; }
+  .conv select { font-size: 14px; padding: 0 5px; min-height: 32px; }
   .conv-arrow { font-size: 15px; padding: 4px 3px; }
   /* Key rows are only ~24px here, so line boxes must stay under that or the
      glyphs clip. Ink parity with the digits is not achievable at this height —
