@@ -48,10 +48,23 @@ export function parse(src, radix = DEC) {
   }
 
   function bitAnd() {
-    let node = expr();
+    let node = shift();
     while (at(OP, '&')) {
       i++;
-      node = { type: 'binary', op: '&', left: node, right: expr() };
+      node = { type: 'binary', op: '&', left: node, right: shift() };
+    }
+    return node;
+  }
+
+  /*
+   * Shifts bind tighter than `&` and looser than `+`, which is C's order, so
+   * `1≪2+1` is 1≪3 = 8. Left-associative: `FF≫1≫1` is `(FF≫1)≫1`.
+   */
+  function shift() {
+    let node = expr();
+    while (at(OP, '≪') || at(OP, '≫')) {
+      const op = tokens[i++].value;
+      node = { type: 'binary', op, left: node, right: expr() };
     }
     return node;
   }
@@ -65,9 +78,10 @@ export function parse(src, radix = DEC) {
     return node;
   }
 
+  /* `%` sits with × and ÷ because it is the other half of a division. */
   function term() {
     let node = factor();
-    while (at(OP, '*') || at(OP, '/')) {
+    while (at(OP, '*') || at(OP, '/') || at(OP, '%')) {
       const op = tokens[i++].value;
       node = { type: 'binary', op, left: node, right: factor() };
     }

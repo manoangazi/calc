@@ -44,8 +44,18 @@ inexact above 2^53, which is only 14 hex digits. Consequences worth knowing:
   They cost `√`, `^` and `00`, all of which still work from a hardware keyboard.
   `^` was the one worth removing on its own merits — it means XOR in every
   language a hex user knows, so leaving it as exponentiation was a standing trap.
-  Precedence is C's: `&` tighter than `⊻` tighter than `|`, all three looser than
-  `+` and `−`, so `FF&0F+1` groups as `FF&(0F+1)`.
+  Each also **holds a second operator**, shown small on the key face the way `⌫`
+  shows `AC`: `&` holds `≪`, `⊻` holds `≫`, `|` holds `%`.
+  Precedence is C's: `&` tighter than `⊻` tighter than `|`, shifts tighter than
+  `&` and looser than `+`, `%` with `×` and `÷`. So `FF&0F+1` groups as
+  `FF&(0F+1)` and `1≪2+1` is `1≪3` = 8.
+- **Shifts stay exact**, because they need no word size: `a≪b` is `a × 2^b` and
+  `a≫b` is `a ÷ 2^b`. `1≪40` is 2^64 exactly rather than wrapping to zero, which
+  is the whole reason this mode has no register width. `NOT` and a rotate are
+  the operators still missing, and both are meaningless until you say how wide
+  the register is.
+- **`%` is not hex-only** — a remainder is meaningful on a double, so it works
+  in decimal too, from a keyboard.
 - **Bitwise refuses a negative operand.** BigInt would answer `-1 & FF` with
   `255`, because its operators model an infinite two's-complement register. This
   mode is signed magnitude with no word size, so that answer would assert a model

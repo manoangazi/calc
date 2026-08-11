@@ -32,8 +32,13 @@ export function evaluate(node) {
         // Parseable in any radix, evaluable only in hex. JS would happily
         // coerce these through a 32-bit int and hand back a wrong answer for
         // anything larger or fractional, so they are refused outright.
-        case '&': case '⊻': case '|':
+        case '&': case '⊻': case '|': case '≪': case '≫':
           throw new CalcError('bitdec', 'bitwise needs hex');
+        // Modulo is the one of these that is meaningful on a double, and it is
+        // useful in every base, so it is not hex-only.
+        case '%':
+          if (b === 0) throw new CalcError('divzero', 'modulo by zero');
+          return a % b;
       }
       throw new CalcError('syntax', `unknown operator "${node.op}"`);
     }
@@ -116,7 +121,7 @@ export function evaluateTime(node) {
       return scalar(Math.sqrt(v.seconds));
     }
     case 'binary':
-      if ('&⊻|'.includes(node.op)) throw new CalcError('bitdec', 'bitwise needs hex');
+      if ('&⊻|≪≫%'.includes(node.op)) throw new CalcError('bitdec', 'not a time operation');
       return timeOp(node.op, evaluateTime(node.left), evaluateTime(node.right));
   }
   throw new CalcError('syntax', `unknown node "${node.type}"`);
@@ -193,6 +198,28 @@ export function evaluateHex(node) {
           if (node.op === '|') return a | b;
           return a ^ b;
         }
+        /*
+         * Shifts need no word size, which is why they fit a mode that has none:
+         * `a≪b` is a × 2^b and `a≫b` is a ÷ 2^b, both exact and unbounded. Only
+         * the *count* is restricted — a negative one would mean shifting the
+         * other way, which is what the other key is for, and an enormous one
+         * would allocate a gigabyte before guard() ever saw it.
+         */
+        case '≪': case '≫': {
+          if (a < 0n) throw new CalcError('bitneg', 'shift of a negative');
+          if (b < 0n) throw new CalcError('bitneg', 'negative shift count');
+          if (node.op === '≫') return a >> b;               // only ever shrinks
+          // Checked *before* shifting, not after: `1 << 4096` allocates the
+          // whole result before guard() could ever see it. Same lesson as the
+          // exponent bound. a<<b is exactly bitLength(a) + b bits.
+          if (b + BigInt(bitLength(a)) > BigInt(MAX_BITS)) {
+            throw new CalcError('toobig', 'shift too large');
+          }
+          return guard(a << b);
+        }
+        case '%':
+          if (b === 0n) throw new CalcError('divzero', 'modulo by zero');
+          return a % b;
         case '^': {
           // A negative exponent truncates to 0 for the same reason 1/2 does:
           // this mode holds integers, and 1/(a^n) is not one.

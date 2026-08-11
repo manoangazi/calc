@@ -19,7 +19,7 @@ export const STORAGE_KEY = 'manocalc.history';
 
 const LEGAL_SRC = {
   [DEC]: /^[0-9.+\-*/^()√]+$/,
-  [HEX]: /^[0-9A-F+\-*/^()√&⊻|]+$/,
+  [HEX]: /^[0-9A-F+\-*/^()√&⊻|≪≫%]+$/,
   [TIM]: /^[0-9:.hms+\-*/^()√]+$/,
 };
 const LEGAL_BIGINT = /^-?[0-9]+$/;

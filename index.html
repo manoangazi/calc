@@ -134,7 +134,13 @@
      for. It cost √ (integer roots are a curiosity), ^ (exponentiation is rare in
      hex, and worse, `^` means XOR in every language a hex user knows — leaving it
      as a power was a standing trap) and 00. Both still work from a keyboard.
-     Shown in C's precedence order, tightest first: & then ⊻ then |. -->
+     Shown in C's precedence order, tightest first: & then ⊻ then |.
+
+     Each also holds a second operator, shown small on the key face the way ⌫
+     shows AC. These three are the rest of what is feasible without a word size:
+     a shift is a × or ÷ by a power of two, exact and unbounded, and a remainder
+     needs no register at all. NOT and a rotate are the ones missing, and both
+     are meaningless until you say how wide the register is. -->
 <div class="keypad hex" role="group" aria-label="Hexadecimal keypad" hidden>
   <button type="button" class="key" data-cmd="digit:0">0</button>
   <button type="button" class="key" data-cmd="digit:1">1</button>
@@ -161,9 +167,9 @@
   <button type="button" class="key op" data-cmd="op:+" aria-label="Plus">+</button>
 
   <button type="button" class="key fn" data-cmd="paren" data-long="parenforce" aria-label="Parenthesis">( )<sup class="depth"></sup></button>
-  <button type="button" class="key op" data-cmd="op:&amp;" aria-label="Bitwise AND">&amp;</button>
-  <button type="button" class="key op" data-cmd="op:&#8891;" aria-label="Bitwise XOR">&#8891;</button>
-  <button type="button" class="key op" data-cmd="op:|" aria-label="Bitwise OR">|</button>
+  <button type="button" class="key op" data-cmd="op:&amp;" data-long="op:&#8810;" aria-label="Bitwise AND, hold for shift left">&amp;<span class="alt">&#8810;</span></button>
+  <button type="button" class="key op" data-cmd="op:&#8891;" data-long="op:&#8811;" aria-label="Bitwise XOR, hold for shift right">&#8891;<span class="alt">&#8811;</span></button>
+  <button type="button" class="key op" data-cmd="op:|" data-long="op:%" aria-label="Bitwise OR, hold for modulo">|<span class="alt">%</span></button>
   <button type="button" class="key equals" data-cmd="equals" aria-label="Equals">=</button>
 </div>
 

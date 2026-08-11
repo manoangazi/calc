@@ -142,7 +142,7 @@ const OP_GLYPH = {
   '+': '+', '-': '−', '*': '×', '/': '÷', '^': '^', '√': '√',
   // Hex only. Symbols rather than the words AND/OR/XOR, so they sit in the
   // expression the way × and ÷ already do instead of breaking it into prose.
-  '&': '&', '⊻': '⊻', '|': '|',
+  '&': '&', '⊻': '⊻', '|': '|', '≪': '≪', '≫': '≫', '%': '%',
 };
 
 /**

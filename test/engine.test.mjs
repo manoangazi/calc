@@ -334,6 +334,14 @@ eq(keyed('sqrt', 'sqrt', 'digit:9').buf, '√√9', 'roots stack');
 eq(keyed('sqrt', 'op:+').buf, '+', 'a binary operator corrects a trailing root');
 eq(keyedValue('sqrt', 'digit:8', 'digit:1'), 9, 'a rooted expression previews');
 
+// ---- modulo -------------------------------------------------------------
+
+eq(calc('7%3'), 1, 'modulo');
+eq(calc('7.5%2'), 1.5, 'modulo on a fraction');
+eq(calc('-7%3'), -1, 'sign follows the dividend, JS %, not a true mod');
+eq(calc('2+3%2'), 3, '% binds with * and /');
+eq(codeOf(() => calc('7%0')), 'divzero', 'modulo by zero says so');
+
 if (failures.length) {
   console.error(`\n${failures.length} failed, ${pass} passed\n`);
   for (const f of failures) console.error(`  ✗ ${f}\n`);

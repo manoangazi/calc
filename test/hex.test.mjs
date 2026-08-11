@@ -210,6 +210,36 @@ eq(press(['digit:F','digit:F','op:&','digit:0','digit:F']).buf, 'FF&F', 'typed o
 eq(press(['digit:F','op:&','op:|']).buf, 'F|', 'one bitwise operator corrects another');
 setRadix(DEC);
 
+// ---- shifts and modulo ------------------------------------------------------
+
+/* These need no word size, which is why they fit a mode that has none: a≪b is
+   a x 2^b and a≫b is a / 2^b, both exact and unbounded. */
+eq(hex('1≪4'), 0x10n, 'shift left by four is one nibble');
+eq(hex('FF≪8'), 0xFF00n, 'shift left by eight is one byte');
+eq(hex('FF00≫8'), 0xFFn, 'shift right undoes it');
+eq(hex('FF≫4'), 0xFn, 'shift right drops a nibble');
+eq(hex('1≫1'), 0n, 'shifting past the end is zero, not a fraction');
+eq(hex('FF≫1≫1'), 0x3Fn, 'left-associative');
+eq(hex('1≪0'), 1n, 'a zero shift is identity');
+
+/* Exactness survives, unlike under a fixed register. */
+eq(hex('1≪40'), 1n << 64n, 'shifting past 64 bits is exact, not wrapped');
+eq(hex('1≪100'), 1n << 256n, 'and past 256');
+
+/* C's order: shifts tighter than &, looser than +. */
+eq(hex('1≪2+1'), 8n, 'shift binds looser than + (1<<3)');
+eq(hex('3&1≪1'), 2n, 'and tighter than & (3 & 2)');
+
+eq(code(() => hex('-1≪1')), 'bitneg', 'shifting a negative is refused');
+eq(code(() => hex('1≪-1')), 'bitneg', 'a negative shift count is refused');
+/* Refused before the shift is computed, not after — 1<<FFFFFF would allocate
+   the whole result first. Same lesson as the exponent bound. */
+eq(code(() => hex('1≪FFFFFF')), 'toobig', 'an enormous shift is refused up front');
+
+eq(hex('FF%10'), 0xFn, 'modulo');
+eq(hex('10%4'), 0n, 'exact division leaves no remainder');
+eq(code(() => hex('FF%0')), 'divzero', 'modulo by zero says so');
+
 if (failures.length) {
   console.error(`${failures.length} failed, ${pass} passed\n`);
   for (const f of failures) console.error(`  ✗ ${f}\n`);
