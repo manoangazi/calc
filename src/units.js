@@ -89,18 +89,22 @@ export const CATEGORIES = [
     id: 'volume',
     label: 'Volume',
     base: 'L',
+    /* The system qualifier carries no brackets: `gal US` rather than `gal (US)`.
+       Two characters each, and these are the longest labels in the whole table —
+       they set the width the picker has to fit. The `id`s are untouched, so
+       nothing stored or converted changes. */
     units: [
       { id: 'mL', label: 'mL', factor: 0.001 },
       { id: 'L', label: 'L', factor: 1 },
       { id: 'm3', label: 'm³', factor: 1000 },
-      { id: 'tsp', label: 'tsp (US)', factor: 0.00492892159375 },
-      { id: 'tbsp', label: 'tbsp (US)', factor: 0.01478676478125 },
-      { id: 'floz', label: 'fl oz (US)', factor: 0.0295735295625 },
-      { id: 'cup', label: 'cup (US)', factor: 0.2365882365 },
-      { id: 'pt', label: 'pt (US)', factor: 0.473176473 },
-      { id: 'qt', label: 'qt (US)', factor: 0.946352946 },
-      { id: 'gal', label: 'gal (US)', factor: 3.785411784 },
-      { id: 'galuk', label: 'gal (UK)', factor: 4.54609 },
+      { id: 'tsp', label: 'tsp US', factor: 0.00492892159375 },
+      { id: 'tbsp', label: 'tbsp US', factor: 0.01478676478125 },
+      { id: 'floz', label: 'fl oz US', factor: 0.0295735295625 },
+      { id: 'cup', label: 'cup US', factor: 0.2365882365 },
+      { id: 'pt', label: 'pt US', factor: 0.473176473 },
+      { id: 'qt', label: 'qt US', factor: 0.946352946 },
+      { id: 'gal', label: 'gal US', factor: 3.785411784 },
+      { id: 'galuk', label: 'gal UK', factor: 4.54609 },
     ],
   },
   {

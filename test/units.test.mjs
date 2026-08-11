@@ -101,8 +101,8 @@ near(convert(0, unit('temp', 'K'), unit('temp', 'C')), -273.15, '0 K in C');
 near(convert(0, unit('temp', 'K'), unit('temp', 'F')), -459.67, '0 K in F');
 near(convert(212, unit('temp', 'F'), unit('temp', 'K')), 373.15, '212 F in K');
 
-near(convert(1, unit('volume', 'gal'), unit('volume', 'L')), 3.785411784, '1 gal (US) in L');
-near(convert(1, unit('volume', 'galuk'), unit('volume', 'L')), 4.54609, '1 gal (UK) in L');
+near(convert(1, unit('volume', 'gal'), unit('volume', 'L')), 3.785411784, '1 gal US in L');
+near(convert(1, unit('volume', 'galuk'), unit('volume', 'L')), 4.54609, '1 gal UK in L');
 near(convert(1, unit('volume', 'm3'), unit('volume', 'L')), 1000, '1 m3 in L');
 near(convert(1, unit('area', 'acre'), unit('area', 'm2')), 4046.8564224, '1 acre in m2');
 near(convert(1, unit('area', 'ha'), unit('area', 'm2')), 10000, '1 ha in m2');
