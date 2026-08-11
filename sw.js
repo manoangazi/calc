@@ -2,7 +2,7 @@
  * Bump CACHE_VERSION on every release. Without it iOS will happily serve a
  * month-old calculator from its cache and you will lose an evening to it.
  */
-const CACHE_VERSION = 'manocalc-v23';
+const CACHE_VERSION = 'manocalc-v24';
 
 /* Paths are relative to this file, so the app works from a GitHub Pages
    subpath (/calc/) exactly as it does from a domain root. */

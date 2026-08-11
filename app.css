@@ -354,9 +354,17 @@ body[data-pad="hex"] .util.back { width: calc((100vw - 6 * var(--gap)) / 5); }
    for the iOS picker; these are on --surface rather than the bar, so they take
    the accent colour instead of white.
    The explicit display:none is load-bearing — display:flex beats [hidden]. */
+/* Spans columns 2 and 3 of the keypad grid, so the whole utility row sits on the
+   same four columns as the keys: ⋯ on 1, this pair on 2 and 3, backspace on 4.
+   `flex: 1` takes the space the other two leave, which is those two columns plus
+   the three gaps around them; a gap of margin at each end trims it to exactly the
+   columns' outer edges, and space-between then pins one picker to each. */
 .conv {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  margin: 0 var(--gap);
   gap: 4px;
   min-width: 0;
 }
