@@ -1,319 +1,290 @@
-# ManoCalc
+# ManoCalc — user guide
 
-A personal arithmetic calculator PWA. Static files, no dependencies, no build step.
+A calculator that does four jobs: ordinary arithmetic, hexadecimal, unit and
+currency conversion, and time durations.
 
 **Live: https://manoangazi.github.io/calc/**
 
-On iPhone, open that in Safari and use Share → Add to Home Screen. It then runs
-full-screen and works offline.
+On iPhone, open that in Safari and use **Share → Add to Home Screen**. It then
+runs full-screen, launches like an app, and works with no signal — including the
+last exchange rates it fetched.
 
-See [BUILD-SPEC.md](BUILD-SPEC.md) for the full spec and staging plan.
-**Stages 1–5 are complete**, plus the history tape and long-press copy from
-stage 6. Only the optional `ANS` key remains unbuilt.
+Building it or changing it? See [DEVELOPING.md](DEVELOPING.md) and
+[BUILD-SPEC.md](BUILD-SPEC.md).
 
-Arithmetic is `+ − × /`, exponent `^`, square root `√`, unary minus, decimals and
-arbitrarily nested parentheses, with live evaluation as you type.
+---
 
-`√` is a prefix operator with the same precedence as unary minus, so it takes the
-next factor rather than the rest of the line: `√9+7` is 10, and `√(9+7)` is 4.
-It stacks (`√√16` is 2), and after a value it means multiplication, so `2√9` is 6
-— the same implicit `×` that `(2+3)4` gets. A negative under the root is refused
-rather than returned as `NaN`; this calculator is real-valued.
+## The screen
 
-There is no `AC` key on the keypad. Backspace does both jobs — tap to delete, hold
-to clear — and is labelled `⌫ AC` accordingly.
-
-Results show as many decimal places as they need, or a fixed 1–5 — pick from the
-`⋯` menu. Rounding is display-only, so changing it re-renders past history
-entries at the new setting rather than having thrown precision away.
-
-## Hex
-
-The `DEC`/`HEX` control in the app bar switches base. Switching rewrites every
-number literal in the expression, not just the result, so a half-typed
-calculation survives it — and so typing `255` and switching is all a base
-conversion takes.
-
-Hex is **integer-only**, and runs on `BigInt` rather than doubles. That is what
-makes `FFFFFFFFFFFFFFFF` come back exactly instead of approximately: doubles go
-inexact above 2^53, which is only 14 hex digits. Consequences worth knowing:
-
-- **Division truncates toward zero.** `10/3` is `5`, not `5.55…`. There is no
-  point key in hex.
-- **The last keypad row is bitwise**, not arithmetic: `&`, `⊻` (XOR) and `|`.
-  They cost `√`, `^` and `00`, all of which still work from a hardware keyboard.
-  `^` was the one worth removing on its own merits — it means XOR in every
-  language a hex user knows, so leaving it as exponentiation was a standing trap.
-  Each also **holds a second operator**, shown small on the key face the way `⌫`
-  shows `AC`: `&` holds `≪`, `⊻` holds `≫`, `|` holds `%`.
-  Precedence is C's: `&` tighter than `⊻` tighter than `|`, shifts tighter than
-  `&` and looser than `+`, `%` with `×` and `÷`. So `FF&0F+1` groups as
-  `FF&(0F+1)` and `1≪2+1` is `1≪3` = 8.
-- **Shifts stay exact**, because they need no word size: `a≪b` is `a × 2^b` and
-  `a≫b` is `a ÷ 2^b`. `1≪40` is 2^64 exactly rather than wrapping to zero, which
-  is the whole reason this mode has no register width. `NOT` and a rotate are
-  the operators still missing, and both are meaningless until you say how wide
-  the register is.
-- **`%` is not hex-only** — a remainder is meaningful on a double, so it works
-  in decimal too, from a keyboard.
-- **Bitwise refuses a negative operand.** BigInt would answer `-1 & FF` with
-  `255`, because its operators model an infinite two's-complement register. This
-  mode is signed magnitude with no word size, so that answer would assert a model
-  the rest of the mode does not have. See below.
-- **`√` truncates too**, for the same reason: `√FF` is `F`, since 15² is 225 and
-  16² is 256. It is computed by Newton's method on `BigInt`, never via
-  `Math.sqrt` — a double would lose the exactness above 2^53 that the hex
-  evaluator exists to preserve, so `√(FFFFFFFFFFFFFFFF²)` comes back exact.
-- **Switching DEC → HEX drops any fraction.** `12.75` becomes `C`, and the hint
-  line says so rather than letting it happen quietly.
-- **Negatives are signed magnitude**, not two's complement: `5-A` is `-5`. There
-  is no word size to choose, and no `FFFFFFFB`.
-- **`^` is bounded.** Floats overflow to `∞` and stop; BigInt has no ceiling, so
-  a large exponent is refused before it is computed rather than allocating until
-  the tab dies.
-
-The keypad becomes a nibble table in hex — `0`–`F` in reading order across five
-columns.
-
-The base is deliberately not persisted; the app always opens in decimal.
-
-## Unit conversion
-
-`CON` is the third option on the same control. It is **decimal arithmetic with a
-conversion applied to the result** — not a base — so the whole expression engine
-is unchanged and `12*3` converts 36. The converted value gets its own line under
-the result; the from/to pickers sit in the utility row, and the category is in
-the `⋯` menu, because you pick it once and then change units repeatedly.
-
-The `⇄` between the two pickers swaps them. Reversing a conversion by hand
-otherwise means two trips through the native picker to set each side to what the
-other already had. The units swap; the typed expression does not, since the
-buffer is the input and rewriting it would answer a question nobody asked.
-
-Ten categories: length, mass, temperature, volume, area, speed, data, time,
-pressure, energy. Worth knowing:
-
-- **Temperature is affine, not proportional.** °F and K carry an `offset` as well
-  as a factor, which is why [src/units.js](src/units.js) never divides one
-  factor by another and always routes through the category's base unit.
-- **Data carries both scales**, correctly named: `kB/MB/GB/TB` are 1000ⁿ and
-  `KiB/MiB/GiB/TiB` are 1024ⁿ. This app has a hex mode, so it gets used for disk
-  capacities and allocator sizes alike; one scale would be wrong half the time
-  with no way to tell which was in force.
-- **`=` in CON tapes the plain decimal calculation**, untagged. The converted
-  value is never stored.
-- **Time stops at weeks.** A month is 28–31 days, so converting to one would be
-  quietly making something up.
-
-Conversions run on doubles, so `37 °C` is `98.60000000000001` before the
-display's 12-significant-digit rounding turns it back into `98.6`.
-
-## Currency
-
-An eleventh category inside CON, not a fourth mode — same pickers, same
-converted line, same `value * factor` arithmetic; only the factor comes from a
-feed instead of a table. Rates are ECB daily reference rates from
-[Frankfurter](https://api.frankfurter.dev), fetched with no API key: this repo
-is public with no server, and a committed key is world-readable on sight, so
-every near-realtime provider was ruled out on that basis alone.
-
-- **Refreshed once a day, on open, not on a schedule.** A PWA cannot wake itself
-  at a fixed hour, so "first open of the day" is the honest version of that. The
-  request is 237 bytes gzipped — daily refresh costs about 7 KB a month.
-- **Cached, so it still works offline** — from whatever was last fetched. The
-  rate note under the converted line shows the feed's own date, and turns red
-  with the word `Stale` when the app has not reached the feed in 24 hours.
-  Staleness is keyed off *when we last fetched*, never off the feed's date
-  itself: the ECB does not publish at weekends, so Friday's rate read on a
-  Sunday is correct, not stale.
-- **No forward cover.** ZAR forward points are an OTC bank quote with no free
-  feed; South Africa's Reserve Bank publishes bond yields, not FX forwards. A
-  covered-interest-parity number computed from hand-typed rates would look like
-  a quote without being one, so it was left out rather than faked.
-- 18 currencies: the majors plus the SA trade partners and the CMA pegs
-  (`BWP`, `NAD`).
-
-## Time
-
-`TIM` is the fourth option on the same control, and unlike `CON` it *is* a base:
-`1h20m45s` is a literal in a different number system the way `FF` is, with its
-own tokenizer charset, evaluator, keypad and result format. Internally the radix
-is 60.
-
-Two spellings are accepted and mean the same thing. The keypad emits the first;
-the second is there for a hardware keyboard.
-
-| typed | also | means |
-|---|---|---|
-| `1h20m45s` | `1:20.45` | 1 h 20 m 45 s |
-| `1h20` | `1:20` | 1 h 20 m — a trailing bare group takes the next unit down |
-| `90m` | `:90` | 90 min — fields may overflow on input |
-| `45s` | `.45` | 45 s |
-| `2` | — | the **scalar** two, because it carries no marker at all |
-
-Both are positional: what a field means comes from the *markers present*, never
-from counting digits. That is what removes the `H:MM`-versus-`MM:SS` ambiguity —
-`1:20` can only be 1 h 20 m, and `20.45` can only be 20 m 45 s. Results are
-always canonical `H:MM:SS`, and hours accumulate past 24 (`27:30:00`) rather than
-rolling into days.
-
-Durations carry a **type**, and that is what makes the mode trustworthy:
-
-- `dur ± dur` → duration; `dur × scalar` and `dur ÷ scalar` → duration.
-- **`dur ÷ dur` → a plain number.** `3h / 20m` is `9` — how many 20-minute slots
-  fit in three hours — and it renders as `9`, not `0:00:09`.
-- `dur × dur`, `dur ± scalar`, `dur ^ anything` and `√dur` are **refused** with
-  "Not a time operation" — √(4 hours) has no unit anyone can name. A duration squared is not a quantity that exists, and
-  `1h + 2` does not say plus what; a plausible wrong answer would be worse than
-  none.
-
-Whole seconds is the model, not a display rounding, so `×` and `÷` round at the
-operation: `1h / 7` is `0:08:34` and multiplying that back by 7 gives `0:59:58`.
-
-The converted line under the result carries **decimal hours** — the number a
-timesheet or an invoice wants, and the one thing `H:MM:SS` is bad at. The
-decimal-places setting governs that line.
-
-The keypad is its own layout rather than the decimal one with substitutions:
-`h m s` share the top row with `/`, the operators run down the fourth column, and
-the bottom row is `0 00 ( ) =`. **There is no `AC` key in `TIM`** — clear by
-long-pressing `⌫`, which is labelled `AC` for exactly that reason, or `Esc` on a
-hardware keyboard. Dropping it is what makes the grid come out at exactly twenty
-keys with nothing double-width and no gap.
-
-Only pure integer arithmetic survives a switch into or out of `TIM`, since it
-means the same thing in every mode. Anything with a marker or a decimal point
-would change meaning — `20.45` is twenty-point-four-five in `DEC` and 20 m 45 s
-here — so it is cleared and the hint line says so.
-
-## Run locally
-
-Service workers and ES modules need a real origin, so `file://` will not work.
-
-```bash
-python -m http.server 8123
-```
-
-Then open `http://localhost:8123`.
-
-**The service worker does not register on localhost.** A cache-first worker serves
-the copy of a file it captured on an earlier load, so an edit becomes invisible in
-the browser while looking like it silently failed — and clearing the cache by hand
-does not stick, because the next reload re-registers and re-caches. Skipping
-registration in dev is the only version that stays fixed. To exercise the worker
-deliberately, load `http://localhost:8123/?sw=1`.
-
-Note that `python -m http.server` sends no `Cache-Control`, so the browser's own
-HTTP cache will also serve stale modules. `fetch(url, { cache: 'reload' })` forces
-the network and rewrites that entry; a plain reload may not.
-
-## Test
-
-```bash
-node test/run.mjs
-```
-
-`test/engine.test.mjs`, `test/hex.test.mjs`, `test/units.test.mjs` and
-`test/currency.test.mjs` are the assertion suites. The units and currency suites
-matter more than their size suggests: a wrong factor, or a reciprocal taken the
-wrong way round, is a silently wrong answer rather than a crash, so every
-category is pinned to an independently known value.
-`test/currency.test.mjs` drives a stubbed `fetch` and a stubbed storage object —
-nothing in the suite touches the network — and pins the one case a future
-refactor is most likely to reintroduce: a Friday rate read on a Sunday must not
-be flagged stale, because staleness tracks when *we* last fetched, not the
-feed's own date.
-`test/fuzz.test.mjs` throws 100k random expressions and 20k random keypad
-sequences at each engine and asserts that nothing but a `CalcError` ever escapes;
-its hex pass also asserts no iteration runs slow, which is how an unbounded
-BigInt would show up. `test/assets.test.mjs` checks that every module in `src/`
-is in the service worker's precache list — miss one and the app works perfectly
-right up until the device goes offline. It also checks that every element
-`ui.js` looks up exists in `index.html`, and that the markup has no `style=` or
-inline handler; all three are failures that only appear in a browser.
-
-All are dependency-free. The fuzzer is seeded — reproduce a failure with
-`FUZZ_SEED=<seed> node test/fuzz.test.mjs`.
-
-## Deploy
-
-Push to `main`. The Pages workflow publishes the repo root as-is. Enable Pages once
-in repo settings with **Source: GitHub Actions**, then add the resulting URL to the
-iOS home screen via Share → Add to Home Screen.
-
-Every path in the app is relative, so it works unchanged from a project subpath
-(`user.github.io/calc/`) or a domain root.
-
-### Releasing a change
-
-Bump `CACHE_VERSION` in [sw.js](sw.js) whenever any cached file changes. Skip it and
-iOS will keep serving the old app from its cache indefinitely. The worker calls
-`skipWaiting()` and `clients.claim()`, so a bumped version takes effect on the next
-launch.
-
-### Icons
-
-`icons/*.png` are generated, not hand-drawn. After changing the accent colour:
-
-```bash
-node tools/make-icons.mjs
-```
-
-## Layout
-
-| File | Role |
+| | |
 | --- | --- |
-| `index.html` | Markup: app bar, display card, keypad grid |
-| `app.css` | Layout, safe-area insets, tap targets |
-| `src/tokenizer.js` | String → token stream |
-| `src/parser.js` | Tokens → AST, recursive descent |
-| `src/eval.js` | AST → number (doubles), and AST → BigInt for hex |
-| `src/radix.js` | Rewriting the expression buffer between bases |
-| `src/units.js` | The unit table and the conversion arithmetic |
-| `src/currency.js` | The exchange-rate feed: fetch, validation, caching, staleness |
-| `src/format.js` | Number → display string; expression → tinted spans |
-| `src/model.js` | Expression buffer and keypad command reducer |
-| `src/ui.js` | DOM binding and event delegation |
-| `src/errors.js` | The single `CalcError` type and its display taxonomy |
-| `src/history.js` | History tape: validation, capping, storage round-trip |
-| `src/sw-register.js` | Service worker registration |
-| `sw.js` | Precache + cache-first offline support |
-| `manifest.webmanifest` | Install metadata |
-| `tools/make-icons.mjs` | Dependency-free PNG icon generator |
+| **App bar** | The mode picker (`DEC` / `HEX` / `TIM` / `CON`) and `↻` for history |
+| **Display card** | Your expression, and the result live beneath it as you type |
+| **Utility row** | `⋯` menu · the conversion pickers, in `CON` only · `⌫ AC` |
+| **Keypad** | Changes with the mode |
 
-`eval()` and `Function()` are never used — the parser exists so that no user-typed
-string is ever executed.
+The result updates on **every keystroke** — there is no need to press `=` to see
+where you are. `=` is for committing a line to the history tape and starting the
+next one.
 
-## Security
+When something is wrong the result line shows a dash and a quiet hint underneath
+("Divide by zero", "Not a time operation"). Nothing pops up, and nothing is
+thrown away — fix the expression and the answer comes back.
 
-Reviewed 2026-08-08; no vulnerabilities found. See
-[BUILD-SPEC.md](BUILD-SPEC.md#6a-security-review) for the full findings. In short:
-there are no injection sinks (every DOM write is `textContent` or `createElement`),
-user expressions are parsed rather than executed, stored history is treated as
-untrusted on read as well as on write, and the deploy workflow holds a read-only
-token.
+---
 
-A Content-Security-Policy ships as a `<meta>` tag in `index.html`, since GitHub
-Pages cannot set response headers. It allows `'self'` only, with no
-`'unsafe-inline'` — **so do not add an inline `<script>` or a `style="…"`
-attribute.** Either will be blocked in the browser while the test suite still
-passes, so check the browser console after changing markup or styling.
+## Buttons that do two jobs
 
-`connect-src` carries one exception, `https://api.frankfurter.dev`, for the
-currency feed — the only host this app is allowed to reach off-origin. Widen it
-by naming a host, never by relaxing it to a scheme.
+This is the short list worth knowing. **Hold** means press and keep holding for
+about half a second; you get a small buzz when the second action arms, and it
+fires when you lift your finger.
 
-## Keyboard
+| Button | Tap | Hold |
+| --- | --- | --- |
+| `⌫ AC` | Delete the character before the caret | **Clear everything** |
+| `( )` | Insert whichever bracket fits here | Insert **the other one** |
+| `&` *(hex)* | Bitwise AND | `≪` shift left |
+| `⊻` *(hex)* | Bitwise XOR | `≫` shift right |
+| `\|` *(hex)* | Bitwise OR | `%` remainder |
+| The **result** | — | **Copy it** to the clipboard |
+| A **history entry** | Load it back into the calculator | **Copy it** |
 
-Usable from a hardware keyboard when opened on a desktop.
+Where a key has a second job, the second label is printed small on the key face —
+that is what the little `AC` on the backspace key and the `≪ ≫ %` on the hex
+operators are.
+
+**There is no separate `AC` key.** Backspace does both jobs, which is why it is
+in the danger colour and labelled `⌫ AC`.
+
+**The `( )` key guesses**, and is right nearly always: it opens a bracket where
+an open bracket makes sense and closes one where a close does. Holding it
+overrides the guess. The small number on its corner is how many brackets are
+still open.
+
+Two more gestures, on the display rather than the keypad:
+
+- **Tap anywhere in the expression** to put the caret there — you can edit the
+  middle of a line, not just the end.
+- **`⋯` → Copy result** does the same as holding the result, if a hold is awkward.
+
+---
+
+## DEC — ordinary arithmetic
+
+`+ − × ÷`, exponent `^`, square root `√`, unary minus, decimals, and brackets
+nested as deep as you like.
+
+`√` takes the **next value only**, not the rest of the line: `√9+7` is 10, and
+`√(9+7)` is 4. It stacks, so `√√16` is 2. Put a number in front of it and it
+means multiply — `2√9` is 6 — the same way `(2+3)4` does. A negative under the
+root is refused rather than answered with nonsense.
+
+`00` types two zeros, for round numbers.
+
+### Decimal places
+
+`⋯` → **Decimal places** — `Auto`, or a fixed 1 to 5.
+
+This is a display setting, not a rounding of your data. The full value is kept,
+so switching from 2 places to 4 shows you the digits that were always there, and
+it re-renders past history entries at the new setting too.
+
+### Long numbers
+
+A number is never split across two lines. If the expression wraps, it breaks at
+an operator, so `10000000000+5000000` never shows as `10000000000+50` with the
+rest orphaned below. The text shrinks a step or two first. None of this touches
+the arithmetic.
+
+---
+
+## HEX — hexadecimal
+
+Pick `HEX` and the keypad becomes a nibble table: `0`–`F` in reading order across
+five columns.
+
+**Switching rewrites the whole expression, not just the result** — so a
+half-typed calculation survives the switch, and typing `255` then switching is
+all a base conversion takes. Switching `DEC → HEX` drops any fraction (`12.75`
+becomes `C`) and tells you it did.
+
+Hex is **whole numbers only**, and exact — `FFFFFFFFFFFFFFFF` comes back to the
+last digit rather than approximately, which is the point of the mode. So:
+
+- **Division truncates.** `10/3` is `5`. There is no decimal point key.
+- **`√` truncates too.** `√FF` is `F`, because 15² is 225 and 16² is 256.
+- **Negatives are plain negatives.** `5-A` is `-5`, not `FFFFFFFB`. There is no
+  register width to choose, and no wrap-around.
+
+### The bitwise row
+
+The bottom row is `& ⊻ |`, each holding a second operator (`≪ ≫ %`). Grouping
+follows C, so `FF&0F+1` means `FF&(0F+1)`, and `1≪2+1` is `1≪3` = 8.
+
+Shifts are exact arithmetic — `1≪40` is 2⁶⁴ exactly rather than wrapping to
+zero. That is deliberate: this mode has no register width, so nothing can
+overflow, but for the same reason **`NOT` and rotate are not offered** — neither
+means anything until you say how wide the register is.
+
+**Bitwise refuses a negative operand** rather than inventing an answer for it,
+for the same reason.
+
+`%` is not hex-only — a remainder is meaningful on a decimal too, so it works in
+`DEC` from a hardware keyboard.
+
+`^` and `√` are still available from a hardware keyboard in hex; the keys gave up
+their slots to the bitwise row. `^` was worth losing anyway — it means XOR in
+every language a hex user knows, so leaving it as exponentiation was a trap.
+
+The app always opens in decimal; the base is not remembered.
+
+---
+
+## CON — units and currency
+
+`CON` is ordinary decimal arithmetic **with a conversion applied to the answer**.
+So you can type `12*3` and it converts 36 — you are not limited to typing a bare
+number.
+
+- The **from** and **to** pickers sit in the utility row.
+- **`⇄` swaps them.** Your expression is left alone; only the units flip.
+- The **category** (length, mass, temperature, …) is in the `⋯` menu, because you
+  pick it once and then change units repeatedly.
+- The converted value gets **its own line** under the result. Hold that line to
+  copy it — in `CON`, the line you press is the line you get.
+- Pressing `=` tapes the plain calculation. The converted value is not stored.
+
+Eleven categories: length, mass, temperature, volume, area, speed, data, time,
+pressure, energy, and currency.
+
+Worth knowing:
+
+- **Data carries both scales, correctly named.** `kB/MB/GB/TB` are 1000ⁿ and
+  `KiB/MiB/GiB/TiB` are 1024ⁿ. One scale would be wrong half the time with no way
+  to tell which was in force.
+- **Volume is labelled `gal US` / `gal UK`**, and the same for teaspoons, cups,
+  pints and quarts — they differ by about 20%, so the label always says which.
+- **Time conversion stops at weeks.** A month is 28–31 days; converting to one
+  would be quietly making something up.
+
+### Currency
+
+Currency is a category inside `CON`, not a separate mode — same pickers, same
+converted line, same arithmetic. 18 currencies: the majors plus the SA trade
+partners and the CMA pegs (`BWP`, `NAD`).
+
+Rates are the **European Central Bank's daily reference rates**, via
+[Frankfurter](https://api.frankfurter.dev).
+
+- **Fetched once a day, on the first open of that day.** An app on a phone cannot
+  wake itself at a set hour, so that is the honest version of "daily".
+- **They work offline**, from whatever was last fetched. A note under the
+  converted line shows the feed's own date.
+- **The note turns red and says `Stale`** when the app has not reached the feed
+  in 24 hours. A Friday rate read on a Sunday is *not* stale — the ECB does not
+  publish at weekends, and that is the rate.
+- `⋯` → **Refresh rates** forces a fetch, for when you have just reconnected.
+
+These are daily reference rates. They are not a dealing rate, and there is no
+forward cover — no free feed publishes one, and a number computed from hand-typed
+rates would look like a quote without being one.
+
+---
+
+## TIM — time durations
+
+For adding up hours worked, timings and stopwatch splits.
+
+Type a duration with the `h`, `m` and `s` keys: `1h20m45s`. Results always read
+back as `H:MM:SS`.
+
+You can leave the last unit off, and the calculator takes the next one down —
+which is how people actually write it:
+
+| You type | Means |
+| --- | --- |
+| `1h20m45s` | 1 h 20 m 45 s |
+| `1h20` | 1 h 20 **m** |
+| `20m45` | 20 m 45 **s** |
+| `90m` | 90 minutes — overflowing a field is fine, it normalises to `1:30:00` |
+| `2` | the plain **number** two, because it carries no unit at all |
+
+On a hardware keyboard `:` and `.` do the same job: `:` separates hours from
+minutes and `.` separates minutes from seconds, always. So `1:20.45` is the same
+as `1h20m45s`, `1:20` is 1 h 20 m, and **`.1` is one second** — a field, not a
+fraction. Because the meaning comes from the markers and never from counting
+digits, there is no `H:MM`-versus-`MM:SS` ambiguity to get caught by. Don't mix
+the two spellings inside one duration (`1h20.45`) — that is rejected rather than
+guessed at.
+
+Hours accumulate past 24: a long total reads `27:30:00`, not "1 day 3 hours".
+
+### What you can and cannot do with a duration
+
+- **Add and subtract durations** — `1h20m45s + 1h5m1s` = `2:25:46`. Negative
+  results are fine: `2h - 3h` is `-1:00:00`.
+- **Multiply or divide by a plain number** — `1h / 2` = `0:30:00`.
+- **Divide a duration by a duration and you get a count**: `3h / 20m` is `9`,
+  nine twenty-minute slots, and it shows as `9` — not `0:00:09`.
+- **`2h * 3h`, `1h + 2`, `1h ^ 2` and `√2h` are refused** with "Not a time
+  operation". A duration squared is not a thing, and `1h + 2` does not say plus
+  what. A plausible wrong answer would be worse than none.
+
+The calculator works in **whole seconds**, so `×` and `÷` round as they go: `1h/7`
+is `0:08:34`, and multiplying that back by 7 gives `0:59:58`. That is the honest
+answer at one-second granularity.
+
+The line under the result is **decimal hours** — the number a timesheet or an
+invoice wants, and the one thing `H:MM:SS` is bad at. The decimal-places setting
+governs that line.
+
+There is **no `AC`** on the time keypad — hold `⌫`.
+
+### Switching in and out of TIM
+
+Only plain whole-number arithmetic survives the switch, because it means the same
+thing everywhere. Anything carrying a unit marker or a decimal point is cleared,
+with a note saying so: `20.45` is twenty-point-four-five in `DEC` and 20 m 45 s
+here, and silently changing what you typed would be worse than clearing it.
+
+---
+
+## History
+
+`↻` in the app bar opens the tape. It holds your recent committed lines — the
+ones you pressed `=` on.
+
+- **Tap an entry** to load it back and carry on from it.
+- **Hold an entry** to copy it.
+- **Clear** empties the tape.
+
+Entries are stored on the device, and each is rendered in the mode it was
+calculated in — a duration still reads `2:25:46` while you are sitting in `DEC`.
+
+---
+
+## Hardware keyboard
+
+Everything works from a keyboard when the app is open on a desktop.
 
 | Key | Action |
 | --- | --- |
-| `0`–`9`, `.`, `,` | Digits and decimal point (`,` also types a `.`, for numeric keypads) |
+| `0`–`9`, `.`, `,` | Digits and decimal point (`,` also types `.`, for numeric keypads) |
 | `a`–`f` | Hex digits, in hex mode only — in decimal `x` still means multiply |
 | `+` `-` `*` `x` `/` `^` | Operators |
+| `%` | Remainder |
+| `:` `.` | Duration separators, in time mode |
 | `(` `)` | Explicit brackets — unlike the `( )` key, these do not guess |
 | `←` `→` `Home` `End` | Move the caret |
-| `Enter` or `=` | Evaluate |
+| `Enter` or `=` | Evaluate and commit to history |
 | `Backspace` | Delete before the caret |
 | `Esc` | Clear |
+
+---
+
+## Privacy
+
+There are no accounts, no analytics and no tracking. Your history and settings
+are stored on your own device and never leave it. The app makes exactly one
+network request of its own — the daily exchange-rate feed — and nothing about
+your calculations is sent with it.

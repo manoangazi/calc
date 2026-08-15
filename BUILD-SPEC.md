@@ -12,7 +12,10 @@ editable expression line on top, a live result underneath, a numeric keypad belo
 
 **Scope (final state):**
 
-- Arithmetic: `+ − × ÷`, exponent `^`, unary minus, decimal point.
+- Arithmetic: `+ − × ÷`, exponent `^`, square root `√`, remainder `%`, unary
+  minus, decimal point.
+- Four modes: decimal, hexadecimal (with bitwise operators), unit and currency
+  conversion, and time durations.
 - Arbitrarily nested parentheses.
 - Live evaluation as you type; `=` commits the result.
 - Backspace, clear, caret positioning by tap.
@@ -693,13 +696,17 @@ routed through the existing `convertBuffer` when hex is the other side.
 timesheet wants and the one thing `H:MM:SS` is bad at. No new DOM, and it
 inherits hold-to-copy and the decimal-places setting for free.
 
-**Unit keys are sized per glyph, by measured ink.** `h` is an ascender while `m`
-and `s` sit at the x-height, so at a shared font-size `h` drew 18px of ink against
-their 12px and read half again as large. Measured with canvas
-`actualBoundingBox` and set to the 20px the digits and operators already use —
-the same method, and the same trap, as the operator sizing in Stage 5. The rules
-key off `data-cmd`, not position, which is why the keys could later be moved
-around the grid without touching the CSS.
+**Unit keys were sized per glyph by measured ink, and that was wrong.** `h` is an
+ascender while `m` and `s` sit at the x-height, so at a shared font-size `h` draws
+half again as much ink; the Stage 5 operator sizing had established measuring ink
+with canvas `actualBoundingBox`, so the same method was applied here — `h` 27px,
+`m` 39px, `s` 38px. The user reported `h` as looking a different weight, and was
+right: equalising the *ink* meant `m` ran at 39px against `h`'s 27px, so its
+strokes were half again as thick. **Reverted in Stage 11** — all three now inherit
+one 28px, and the rule is that equal ink is for *standalone symbols* (`√`, `×`,
+`⊻`), which have no shared reference. Letters share a baseline and an x-height,
+and a reader compares them against each other; they must share a font-size
+instead.
 
 **The TIM pad is its own layout, and it has no `AC`.** It began as the decimal
 grid with three substitutions, on the theory that muscle memory should survive the
@@ -735,6 +742,129 @@ legible in the three modes that do.
 
 ---
 
+### Stage 11 — square root, bitwise operators, and the utility row · done
+
+Not a new mode: three separate pieces of work over the existing four, done in one
+run because each of them lands in the same three files.
+
+#### `√` — a prefix operator at unary precedence
+
+`√` binds like unary minus rather than like `^`, so it takes the next *factor*:
+`√9+7` is 10 and `√(9+7)` is 4. That is the reading a calculator user expects
+from a key, and it makes the operator stackable (`√√16`) for free. After a value
+it takes the implicit `×` that `(2+3)4` already gets, so `2√9` is 6. The
+recursion is depth-bounded by the same counter the bracket nesting uses — a
+prefix operator that calls `factor()` is a stack overflow otherwise, and a
+`RangeError` is not a `CalcError`.
+
+All three evaluators implement it, and each does something different:
+
+- **Decimal** rejects a negative operand rather than returning `NaN`. This
+  calculator is real-valued and `NaN` would propagate silently through the rest
+  of the expression.
+- **Hex** uses **Newton's method on `BigInt`**, never `Math.sqrt`. A double goes
+  inexact above 2⁵³, which is only 14 hex digits — losing exactness is precisely
+  what the hex evaluator exists to prevent, so `√(FFFFFFFFFFFFFFFF²)` must come
+  back exact. The initial estimate is `1 << ⌈bitLength/2⌉` and the loop halts
+  when the next iterate stops decreasing, which for integer Newton is the
+  standard termination and needs no epsilon.
+- **Time** refuses it with `timetype`. √(4 hours) has no unit anyone can name.
+
+#### The hex bitwise row
+
+The hex pad's last row became `& ⊻ |`, at the cost of `√`, `^` and `00`. `^` was
+worth removing on its own merits: it means XOR in every language a hex user
+knows, so leaving it as exponentiation was a standing trap. Both it and `√`
+remain reachable from a hardware keyboard.
+
+Each key **holds** a second operator — `≪`, `≫`, `%` — labelled small on the key
+face, which is the pattern `⌫ AC` established in Stage 10. Precedence is C's, so
+the grammar gained three levels above `expr`: `bitOr → bitXor → bitAnd → shift →
+expr`. `FF&0F+1` therefore groups as `FF&(0F+1)`, which is what a C programmer
+reads it as.
+
+**The mode is signed magnitude with no word size, and that decides what is
+buildable.** `NOT` and rotate are meaningless until you say how wide the register
+is, so they are not built. `&`, `⊻` and `|` **refuse a negative operand**: BigInt
+would answer `-1 & FF` with `255` because its operators model an infinite two's-
+complement register, and returning that would assert a model the rest of the mode
+does not have. Shifts and `%` fit precisely *because* they need no width — `a≪b`
+is `a × 2ᵇ`, so `1≪40` is 2⁶⁴ exactly rather than wrapping to zero. `%` is not
+hex-only and works on doubles too.
+
+**The growth bound goes before the allocation, not after.** `a << b` with a large
+`b` allocates the whole result before `guard()` can reject it; the fuzzer's
+per-iteration timing assertion caught it as a jump from 0.4 ms to 5.4 ms. Bounding
+`bitLength(a) + b` against `MAX_BITS` first put it back to 0.47 ms. This is the
+same lesson as the exponent bound in Stage 7, arrived at the same way, which is
+the argument for the fuzzer asserting on *time* and not only on correctness.
+
+**Two's complement was costed and declined**, at the user's request, on
+2026-08-11. A 64-bit register would wrap `FFFFFFFFFFFFFFFF²` to `1` and `2^3FF`
+to `0`; it would make every `toobig`/`MAX_BITS` guard dead code; and it would make
+DEC↔HEX ambiguous for negatives — is `FFFFFFFFFFFFFFFB` −5 or 1.8×10¹⁹? — needing
+a second signed/unsigned setting to disambiguate. The conclusion was that if it is
+ever wanted, the word size should be owned by the **bitwise operators** rather than
+by the mode: that buys `NOT` and rotate while arithmetic stays exact.
+
+#### Numbers do not break across lines
+
+Requested explicitly as **display-only**: `10000000000+5000000` must never wrap as
+`10000000000+50` with `00000` orphaned below. Each run of number-and-separator
+spans is wrapped in a `.run` span carrying `white-space: nowrap`; the wrapper
+nests around the existing spans and leaves their `data-i` untouched, so
+tap-to-place still resolves to the same caret indices and the buffer is not
+touched at all.
+
+The fallback matters as much as the rule. A single number longer than the card
+would run off the edge with nowhere to break, so `fitExpression` steps the font
+down through four sizes and then, only if the content still overflows
+horizontally, adds `.breakable` — which lifts the `nowrap` and re-steps. Reaching
+that state means the alternative was invisible text.
+
+The line budget became a **measurement** in the same pass. It had been a fixed
+count, which is what let a wrapped TIM expression push the backspace key off the
+card; `expressionRoom` now sums the heights of the card's other children and
+subtracts, and `min-height: 0` on the expression is what allows a flex item to
+shrink past its own content at all.
+
+#### The utility row derives from the keypad's column grid
+
+Three bug reports in a row — the `⋯` button sitting right of column 1, the CON
+pickers spilling under `AC`, the backspace not aligning with the operator column
+— turned out to be one cause: the row held **three different width conventions**
+(a fixed 64px button, an intrinsic-width flex group, and a column-derived key),
+so correcting the alignment of one moved the drift onto another. All four
+elements now derive from `calc((100vw - 5 * var(--gap)) / 4)` with a negative
+margin cancelling `--card-pad`, and the hex variant divides by 5 via
+`body[data-pad="hex"]`. Measured at 0.0px offset at 360, 375 and 640 px in every
+mode.
+
+Two CSS facts, both learned the hard way and logged:
+
+- **`min-width: auto` is a flex item's default**, and it prevents the item
+  shrinking below its content — that, not any width setting, was why the CON
+  picker spilled under `AC`.
+- **`overflow: hidden` was never the fix** for that, and adding it (against a
+  `line-height: 1` added for centring) is what clipped the descender off the `g`
+  in `mmHg`. The line box was exactly one em tall with nowhere to put the tail.
+  Removed; `line-height: 1.25` instead.
+
+#### Two font sizes in a `<select>`
+
+Asked for, measured, declined. A native `<option>` cannot carry mixed typography,
+so the only route is Unicode subscripts — and Unicode has no subscript capitals,
+so a true `gal ᵤₛ` is not available in the shape wanted. Rendered `galᵤₛ` measures
+37.8px against `gal US` at 55.3px, so the saving is real, but VoiceOver may drop
+the characters entirely, which would make two units differing by 20% read
+identically. Relabelled `gal (US)` → `gal US` instead — the same saving from
+dropping the brackets, with no accessibility cost. **Ids were left untouched**, so
+nothing stored or converted changed.
+
+**Live** as `manocalc-v25` (commit `e16a5c6`).
+
+---
+
 ## 6. Repo and deployment
 
 ```
@@ -747,7 +877,9 @@ calc/
   icons/
   test/index.html
   .github/workflows/pages.yml
-  README.md
+  README.md        ← user guide
+  DEVELOPING.md    ← contributor guide: run, test, deploy, invariants
+  BUILD-SPEC.md    ← this file: spec, staged history, decisions
 ```
 
 Pages workflow is the stock `actions/deploy-pages` static upload — no build, it
